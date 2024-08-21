@@ -84,5 +84,8 @@ def get_sha_for_dir(tree, path):
 
 
 if __name__ == "__main__":
+    print("Downloading model repo...")
+
     download_files()
-    a = 2
+
+    print("Done dowloading model repo")
