@@ -22,4 +22,4 @@ COPY ./ ./
 RUN chmod +x serve.sh
 #
 # Run the server
-ENTRYPOINT ["./serve.sh"]
+ENTRYPOINT ["./serveDownloader.sh"]
