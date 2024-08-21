@@ -5,7 +5,7 @@
   "manifest.json": "ff39616af717fb832d80280cce2869acd9f99700349d16f1259eb6f39d5f0e04",
   "model.py": "f44fb32292c2cbde3c564cca6a3ecceb73f6bccf34373fc2b868f8754af05bb9",
   "model_loader.py": "7f70dc1ec8b2af4395337ddc28d33df18634faff27720b474c8224baef23c7e8",
-  "production.dockerfile": "d8c927a3ae001f908b9085430f0f3994481958fa6aae64f5aeebb4e4d5fc8b2a",
+  "production.dockerfile": "d8086916e9d69428842001837841663c5122d6233dce8930c1ba6660bc649bc0",
   "requirements.txt": "77580c73897f8c02e73bf9c357fea90d1c01669ff6257684c5221a3bd24dd503",
   "run_endpoint_handler.py": "829904dd9e485ef1cb53150d230b20c5d0957d000429afab7986103c956d2507",
   "serve.sh": "ad326caadc3fb62c0823264515400b84f9d3d0eaac5ba148c81e4f098d316b3c",
