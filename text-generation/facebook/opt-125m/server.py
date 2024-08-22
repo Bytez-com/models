@@ -76,6 +76,7 @@ def authorize(event_name, props):
 def analytics(event_name, request_props):
     if DISABLE_ANALYTICS:
         return
+
     # remember, props is a pointer
     request_props = deepcopy(request_props)
 

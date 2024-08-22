@@ -17,4 +17,4 @@ COPY ./testModelLoader.sh ./serve.sh ./
 RUN chmod +x testModelLoader.sh
 
 # Run the server
-ENTRYPOINT ["./serve.sh"]
+ENTRYPOINT ["./testServe.sh"]
