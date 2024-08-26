@@ -1,0 +1,15 @@
+{
+  ".dockerignore": "4d50b857d46a62a9944edf2dc9fdb7fe95a0d990a4c5006ef041938ccb95b8fa",
+  "download_bytez_repo.py": "df548bbaec57c60ea7376634447df0119c5e943b89f5c7eecaec744090784ab8",
+  "environment.py": "7a01cfc3e9bca6dcf7da16cc60ffdc3d53bcc6115a9baaad704097a4fd0836f5",
+  "model.py": "d761bdb7f5a9f79b5d28cdbdc4acc3e3240ab03c54188959ea540a7f0e534009",
+  "model_loader.py": "2d7752426c2d996191ac8f55af6e24cff3ad09b1e011b910b198678c8ca2b845",
+  "requirements.txt": "3ab2b1c218b8eba871d40d1cc239f165e2781caae8923bdbf919b7d450cdcd96",
+  "run_endpoint_handler.py": "b23eb0bf26952a49a88d9505bcb781d804cf7f3f1976ba984c5eb4c50ab61b86",
+  "serve.sh": "ad326caadc3fb62c0823264515400b84f9d3d0eaac5ba148c81e4f098d316b3c",
+  "serveDownloader.sh": "bc6c3b6d149e7b148266f44e76acdb9f342501a6e3b44762200f2f878dc0a218",
+  "server.py": "00cd0d276c7c44297b2e43bd6a73049e62f52ce4ba6b71f7f90232463f400e48",
+  "streamer.py": "3aae2afd4f36b6ce18dae5afd0bf974464a338dda90262c5aaf6ed3503e7a77d",
+  "testModelLoader.sh": "f87856ff504e5088945626093068772eefb7c755f7c4c9601c06c376aebffeda",
+  "utils.py": "12ec136ad8adf62bff034f1215481035774d5ea421c806ee2abfd106e72c3b41"
+}
