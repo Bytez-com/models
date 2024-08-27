@@ -2,6 +2,7 @@
   ".dockerignore": "4d50b857d46a62a9944edf2dc9fdb7fe95a0d990a4c5006ef041938ccb95b8fa",
   "download_bytez_repo.py": "df548bbaec57c60ea7376634447df0119c5e943b89f5c7eecaec744090784ab8",
   "environment.py": "7a01cfc3e9bca6dcf7da16cc60ffdc3d53bcc6115a9baaad704097a4fd0836f5",
+  "manifest.json": "1cc53750898b2883398185dfabe5d87ff5b6a5e8923821211744519c30baaec0",
   "model.py": "f44fb32292c2cbde3c564cca6a3ecceb73f6bccf34373fc2b868f8754af05bb9",
   "model_loader.py": "2d7752426c2d996191ac8f55af6e24cff3ad09b1e011b910b198678c8ca2b845",
   "requirements.txt": "07ff39b924f194140b5d21ca6e39090b90718c17fa6e3631ce5e57f4eb23eb21",
