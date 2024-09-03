@@ -8,7 +8,7 @@ audioread==3.0.1
 bitsandbytes==0.43.1
 blinker==1.8.2
 certifi==2024.6.2
-cffi==1.16.0
+cffi==1.17.0
 charset-normalizer==3.3.2
 click==8.1.7
 coloredlogs==15.0.1
@@ -72,11 +72,11 @@ regex==2024.5.15
 requests==2.32.3
 safetensors==0.4.3
 scikit-learn==1.5.1
-scipy==1.14.0
+scipy==1.14.1
 sentencepiece==0.2.0
 six==1.16.0
 soundfile==0.12.1
-soxr==0.4.0
+soxr==0.5.0.post1
 sympy==1.12.1
 threadpoolctl==3.5.0
 tokenizers==0.19.1
