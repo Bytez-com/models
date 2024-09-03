@@ -3,7 +3,7 @@ from copy import deepcopy
 from requests import request as httpRequest
 import json
 from traceback import format_exc
-from flask import Flask, request, jsonify, send_file, Response
+from flask import Flask, request, jsonify
 import functools
 from environment import (
     TASK,
@@ -14,8 +14,7 @@ from environment import (
     USE_PRODUCTION_ANALYTICS_ENDPOINT,
     API_KEY,
 )
-from utils import model_run_generator
-from model import model_run, model_eject
+from stats import SYSTEM_RAM_TRACKER
 
 
 ######################### ANALYTICS LOGIC HERE #########################
@@ -77,6 +76,7 @@ def authorize(event_name, props):
 def analytics(event_name, request_props):
     if DISABLE_ANALYTICS:
         return
+
     # remember, props is a pointer
     request_props = deepcopy(request_props)
 
@@ -128,6 +128,9 @@ try:
 
     app = Flask(__name__)
 
+    # We want to keep our ordering the way it is
+    app.json.sort_keys = False
+
     def track_analytics(event_name):
         def decorator(f):
             @functools.wraps(f)
@@ -151,7 +154,8 @@ try:
     @app.before_request
     def log_request():
         # skip healthcheck pings
-        if request.path == "/health":
+        if request.method != "POST":
+            app.logger.info(f"Request to {request.path} with method {request.method}")
             return
 
         try:
@@ -185,7 +189,7 @@ try:
                 error=str(error),
                 # leaving stack trace out for now, we should have an argument validator function that
                 # provides more insightful data to the user
-                #    stack_trace=stack_trace
+                stack_trace=stack_trace,
             ),
             422,
         )
@@ -199,32 +203,33 @@ try:
     def catch_all():
         return "", 204
 
-    @app.route("/eject", methods=["GET"])
-    def eject():
-        model_path = model_eject()
-
-        return send_file(model_path)
-
     @app.route("/run", methods=["POST"])
     @track_analytics(event_name="Model Inference")
     def run():
-        params = request.json.get("params", {})
-        user_input = request.json["text"]
-        stream = request.json.get("stream", False)
+        return run_endpoint_handler(request)
 
-        if stream:
-            output_generator = model_run_generator(user_input=user_input, params=params)
+    @app.route("/stats/cpu/memory", methods=["GET"])
+    def load_status():
+        stats = SYSTEM_RAM_TRACKER.get_ram_stats()
 
-            return Response(
-                output_generator(),
-                content_type="text/event-stream; charset=utf-8",
-            )
-
-        # model inference
-        model_output = model_run(user_input, params)
+        peak_system_ram_usage_GB = stats["peak_system_ram_usage_GB"]
+        peak_model_ram_usage_GB = stats["peak_model_ram_usage_GB"]
 
         # return response
-        return jsonify({"output": model_output})
+        return jsonify(
+            {
+                "peak_system_ram_usage_GB": peak_system_ram_usage_GB,
+                "peak_model_ram_usage_GB": peak_model_ram_usage_GB,
+            },
+        )
+
+    # NOTE find out how much memory is being used to run the program before loading the model
+    # NOTE this is only accurate because the flask app is run from gunicorn, if we wanted debug to be more accurate
+    # we'd want to do this + then loading the model AFTER the flask server starts in a thread
+    SYSTEM_RAM_TRACKER.set_baseline_utilization_GB()
+
+    # NOTE model is loaded as a side effect of this import, this has to happen after all other setup logic
+    from run_endpoint_handler import run_endpoint_handler
 
     if START_FLASK_DEBUG_SERVER:
         app.run(port=PORT, debug=False)
