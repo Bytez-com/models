@@ -4,7 +4,7 @@ from model_loader import load_model
 pipe = load_model()
 
 
-def model_run(text, params):
+def model_run(text, params: dict):
     """
     Runs model inference, using pipe
 
