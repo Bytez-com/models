@@ -1,19 +1,6 @@
 from flask import jsonify
 from model import model_run
-import numpy as np
-
-
-def convert_np(obj):
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, (np.integer, np.floating)):
-        return obj.item()
-    elif isinstance(obj, dict):
-        return {key: convert_np(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_np(element) for element in obj]
-    else:
-        return obj
+from utils import convert_np
 
 
 def run_endpoint_handler(request):
