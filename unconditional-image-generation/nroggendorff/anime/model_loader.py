@@ -4,12 +4,18 @@ from environment import MODEL_ID, DEVICE
 
 print("Loading model...")
 
-# NOTE diffusers only supports device_map="balanced", otherwise you have to put weights explicitly on the cpu or gpu
-pipe = DiffusionPipeline.from_pretrained(
-    MODEL_ID,
+DEFAULT_KWARGS = {
     ### params ###
-    # device_map="balanced",
-).to(DEVICE)
+    "device_map": "balanced",
+}
+
+try:
+    # NOTE diffusers only supports device_map="balanced", .to() method can be used to specify a specific device
+    pipe = DiffusionPipeline.from_pretrained(MODEL_ID, **DEFAULT_KWARGS)
+except Exception:
+    # NOTE if loading with the device map failed, try loading on a specific device
+    del DEFAULT_KWARGS["device_map"]
+    pipe = DiffusionPipeline.from_pretrained(MODEL_ID, **DEFAULT_KWARGS).to(DEVICE)
 
 
 print("Model loaded")
