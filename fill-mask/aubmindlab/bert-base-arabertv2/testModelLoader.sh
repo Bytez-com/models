@@ -16,6 +16,6 @@ pip install -r /server/requirements.txt
 # NOTE We gain the benefit of other packages not forcing an updgrade unless necessary
 # Also, by not explicitly versioning packages we ensure we're using the latest packages when the error loop runs
 # Some models will likely require logic that downgrades or upgrades packages
-pip freeze -r /server/requirements.txt > /server/requirements.txt
+# pip freeze -r /server/requirements.txt > /server/requirements.txt
 
 python3 /server/model_loader.py
