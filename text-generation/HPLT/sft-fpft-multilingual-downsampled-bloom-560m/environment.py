@@ -29,7 +29,7 @@ START_FLASK_DEBUG_SERVER = json.loads(
 )
 
 USE_PRODUCTION_ANALYTICS_ENDPOINT = json.loads(
-    os.environ.get("USE_PRODUCTION_ANALYTICS_ENDPOINT", "false")
+    os.environ.get("USE_PRODUCTION_ANALYTICS_ENDPOINT", "true")
 )
 
 # when a model, such as a text generation can produce output as it generates, this will enable such printing
