@@ -25,6 +25,10 @@ def model_run_generator(user_input, params: dict):
         try:
             model_run(user_input, params=params)
         except Exception as exception:
+            streamer.text_queue.put("ERROR:")
+
+            streamer.text_queue.put(str(exception))
+
             streamer.text_queue.put(
                 'INTERNAL_BYTEZ_ERROR: arg "stream" was likely passed to a model that does not support streaming.'
             )
