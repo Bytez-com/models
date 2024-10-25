@@ -1,3 +1,4 @@
+import time
 import threading
 from model import model_run
 from model import pipe
@@ -21,12 +22,22 @@ def model_run_generator(user_input, params: dict):
     streamer.reset()
 
     def model_run_thread():
-        model_run(user_input, params=params)
+        try:
+            model_run(user_input, params=params)
+        except Exception as exception:
+            streamer.text_queue.put(f"Error: {str(exception)}")
+
+            # make sure the generator stops on an exception, otherwise the request will hang and never complete
+            streamer.end()
+            raise exception
 
     try:
         # run the model in its own thread, it will magically add
         # its streamed output to the streamer object's queue
         thread = threading.Thread(target=model_run_thread)
+
+        # run the model
+        thread.start()
 
         # this is our generator "hook" to the model
         def output_generator():
@@ -37,9 +48,6 @@ def model_run_generator(user_input, params: dict):
 
             # cleanup the thread, needs to be here because flask doesn't have a way of cleaning this up otherwise
             thread.join()
-
-        # run the model
-        thread.start()
 
         # return the generator
         return output_generator
@@ -61,3 +69,15 @@ def convert_np(obj):
         return [convert_np(element) for element in obj]
     else:
         return obj
+
+
+def timer(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Function '{func.__name__}' took {elapsed_time:.4f} seconds to execute.")
+        return result
+
+    return wrapper
