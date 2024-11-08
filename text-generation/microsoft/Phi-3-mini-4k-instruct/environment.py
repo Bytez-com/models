@@ -27,13 +27,15 @@ START_FLASK_DEBUG_SERVER = json.loads(
 )
 
 USE_PRODUCTION_ANALYTICS_ENDPOINT = json.loads(
-    os.environ.get("USE_PRODUCTION_ANALYTICS_ENDPOINT", "true")
+    os.environ.get("USE_PRODUCTION_ANALYTICS_ENDPOINT", "false")
 )
 
 # when a model, such as a text generation can produce output as it generates, this will enable such printing
 MODEL_LOGGING = json.loads(os.environ.get("MODEL_LOGGING", "false"))
 
 API_KEY = os.environ.get("KEY")
+
+HF_API_KEY = os.environ.get("HF_API_KEY")
 
 CONSTANTS_DICT = {
     "TASK": TASK,
@@ -48,6 +50,7 @@ CONSTANTS_DICT = {
             "DISABLE_ANALYTICS": DISABLE_ANALYTICS,
             "START_FLASK_DEBUG_SERVER": START_FLASK_DEBUG_SERVER,
             "USE_PRODUCTION_ANALYTICS_ENDPOINT": USE_PRODUCTION_ANALYTICS_ENDPOINT,
+            "HF_API_KEY": HF_API_KEY,
         }
         if DISABLE_ANALYTICS
         else {}
@@ -57,3 +60,11 @@ CONSTANTS_DICT = {
 print("Environment: ")
 for key, value in CONSTANTS_DICT.items():
     print(f"{key}: {value}")
+
+if HF_API_KEY:
+    from huggingface_hub import login
+
+    try:
+        login(HF_API_KEY)
+    except Exception as exception:
+        print("Could not log into HF, model may fail to load...")
