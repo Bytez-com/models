@@ -10,15 +10,13 @@ TASK = os.environ.get("TASK")
 MODEL_ID = os.environ.get("MODEL_ID")
 
 # purely for debug, useful when looking at container logs in production, helps make sense of model DL and load times
-MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "4"))
+MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "12345678"))
 
 # controls conditional compatibility logic to allow models to work on CPU only machines
 DEVICE = os.environ.get("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 
 # 8002 to avoid conflicts with testing locally againt local api server
 PORT = os.environ.get("PORT", 8002)
-
-STATS_POLLING_INTERVAL_S = float(os.environ.get("STATS_POLLING_INTERVAL_S", 1))
 
 # prevents calls to analytics when in the testing pipeline, or via instances api
 DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "false"))
@@ -37,6 +35,8 @@ MODEL_LOGGING = json.loads(os.environ.get("MODEL_LOGGING", "false"))
 
 API_KEY = os.environ.get("KEY")
 
+HF_API_KEY = os.environ.get("HF_API_KEY")
+
 CONSTANTS_DICT = {
     "TASK": TASK,
     "MODEL": MODEL_ID,
@@ -50,6 +50,7 @@ CONSTANTS_DICT = {
             "DISABLE_ANALYTICS": DISABLE_ANALYTICS,
             "START_FLASK_DEBUG_SERVER": START_FLASK_DEBUG_SERVER,
             "USE_PRODUCTION_ANALYTICS_ENDPOINT": USE_PRODUCTION_ANALYTICS_ENDPOINT,
+            "HF_API_KEY": HF_API_KEY,
         }
         if DISABLE_ANALYTICS
         else {}
@@ -59,3 +60,11 @@ CONSTANTS_DICT = {
 print("Environment: ")
 for key, value in CONSTANTS_DICT.items():
     print(f"{key}: {value}")
+
+if HF_API_KEY:
+    from huggingface_hub import login
+
+    try:
+        login(HF_API_KEY)
+    except Exception as exception:
+        print("Could not log into HF, model may fail to load...")

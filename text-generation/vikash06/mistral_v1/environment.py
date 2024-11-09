@@ -5,9 +5,9 @@ import torch
 # if it hasn't already been set, prefer HF transfer
 os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
 
-TASK = os.environ.get("TASK", "text-generation")
+TASK = os.environ.get("TASK")
 
-MODEL_ID = os.environ.get("MODEL_ID", "aisingapore/sea-lion-7b-instruct")
+MODEL_ID = os.environ.get("MODEL_ID")
 
 # purely for debug, useful when looking at container logs in production, helps make sense of model DL and load times
 MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "12345678"))
@@ -35,6 +35,8 @@ MODEL_LOGGING = json.loads(os.environ.get("MODEL_LOGGING", "false"))
 
 API_KEY = os.environ.get("KEY")
 
+HF_API_KEY = os.environ.get("HF_API_KEY")
+
 CONSTANTS_DICT = {
     "TASK": TASK,
     "MODEL": MODEL_ID,
@@ -48,6 +50,7 @@ CONSTANTS_DICT = {
             "DISABLE_ANALYTICS": DISABLE_ANALYTICS,
             "START_FLASK_DEBUG_SERVER": START_FLASK_DEBUG_SERVER,
             "USE_PRODUCTION_ANALYTICS_ENDPOINT": USE_PRODUCTION_ANALYTICS_ENDPOINT,
+            "HF_API_KEY": HF_API_KEY,
         }
         if DISABLE_ANALYTICS
         else {}
@@ -57,3 +60,11 @@ CONSTANTS_DICT = {
 print("Environment: ")
 for key, value in CONSTANTS_DICT.items():
     print(f"{key}: {value}")
+
+if HF_API_KEY:
+    from huggingface_hub import login
+
+    try:
+        login(HF_API_KEY)
+    except Exception as exception:
+        print("Could not log into HF, model may fail to load...")
