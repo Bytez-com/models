@@ -189,7 +189,7 @@ try:
                 error=str(error),
                 # leaving stack trace out for now, we should have an argument validator function that
                 # provides more insightful data to the user
-                #    stack_trace=stack_trace
+                stack_trace=stack_trace,
             ),
             422,
         )
