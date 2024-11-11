@@ -6,7 +6,9 @@ import torch
 os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
 
 # always enable progress bars for dockerhub users
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "0"
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = os.environ.get(
+    "DISABLE_PROGRESS_BARS", "0"
+)
 
 TASK = os.environ.get("TASK")
 
