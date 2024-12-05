@@ -1,5 +1,5 @@
 import torch
-from model_loaders.get_model_loader import pipe
+from model_loader import pipe
 
 
 def model_run(text_input, images, params: dict):

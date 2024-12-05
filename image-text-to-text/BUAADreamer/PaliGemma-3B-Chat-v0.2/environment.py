@@ -12,9 +12,7 @@ os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = os.environ.get(
 
 TASK = os.environ.get("TASK")
 
-USE_TASK_MODEL_REGISTRY = json.loads(os.environ.get("USE_TASK_MODEL_REGISTRY", "true"))
-
-SUB_TASK = os.environ.get("SUB_TASK", "text-generation")
+SUB_TASK = os.environ.get("SUB_TASK")
 
 MODEL_ID = os.environ.get("MODEL_ID")
 
