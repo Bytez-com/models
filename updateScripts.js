@@ -24,7 +24,7 @@ async function main() {
     }
   }
 
-  const nameOfFileToUpdate = "server.py";
+  const nameOfFileToUpdate = "serve.sh";
 
   const newFilePath = `${__dirname}/../templates/default/${nameOfFileToUpdate}`;
 
