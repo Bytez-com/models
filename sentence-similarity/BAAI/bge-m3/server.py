@@ -14,7 +14,7 @@ from environment import (
     USE_PRODUCTION_ANALYTICS_ENDPOINT,
     API_KEY,
 )
-from run_endpoint_handler import run_endpoint_handler
+from stats import SYSTEM_RAM_TRACKER
 
 
 ######################### ANALYTICS LOGIC HERE #########################
@@ -76,6 +76,7 @@ def authorize(event_name, props):
 def analytics(event_name, request_props):
     if DISABLE_ANALYTICS:
         return
+
     # remember, props is a pointer
     request_props = deepcopy(request_props)
 
@@ -127,6 +128,9 @@ try:
 
     app = Flask(__name__)
 
+    # We want to keep our ordering the way it is
+    app.json.sort_keys = False
+
     def track_analytics(event_name):
         def decorator(f):
             @functools.wraps(f)
@@ -150,7 +154,8 @@ try:
     @app.before_request
     def log_request():
         # skip healthcheck pings
-        if request.path == "/health":
+        if request.method != "POST":
+            app.logger.info(f"Request to {request.path} with method {request.method}")
             return
 
         try:
@@ -184,13 +189,13 @@ try:
                 error=str(error),
                 # leaving stack trace out for now, we should have an argument validator function that
                 # provides more insightful data to the user
-                #    stack_trace=stack_trace
+                stack_trace=stack_trace,
             ),
             422,
         )
 
     @app.route("/health", methods=["GET"])
-    def health_check():
+    async def health_check():
         return "", 200
 
     @app.route("/", defaults={"path": ""})
@@ -202,6 +207,29 @@ try:
     @track_analytics(event_name="Model Inference")
     def run():
         return run_endpoint_handler(request)
+
+    @app.route("/stats/cpu/memory", methods=["GET"])
+    def load_status():
+        stats = SYSTEM_RAM_TRACKER.get_ram_stats()
+
+        peak_system_ram_usage_GB = stats["peak_system_ram_usage_GB"]
+        peak_model_ram_usage_GB = stats["peak_model_ram_usage_GB"]
+
+        # return response
+        return jsonify(
+            {
+                "peak_system_ram_usage_GB": peak_system_ram_usage_GB,
+                "peak_model_ram_usage_GB": peak_model_ram_usage_GB,
+            },
+        )
+
+    # NOTE find out how much memory is being used to run the program before loading the model
+    # NOTE this is only accurate because the flask app is run from gunicorn, if we wanted debug to be more accurate
+    # we'd want to do this + then loading the model AFTER the flask server starts in a thread
+    SYSTEM_RAM_TRACKER.set_baseline_utilization_GB()
+
+    # NOTE model is loaded as a side effect of this import, this has to happen after all other setup logic
+    from run_endpoint_handler import run_endpoint_handler
 
     if START_FLASK_DEBUG_SERVER:
         app.run(port=PORT, debug=False)

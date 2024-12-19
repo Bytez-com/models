@@ -24,7 +24,7 @@ async function main() {
     }
   }
 
-  const nameOfFileToUpdate = "environment.py";
+  const nameOfFileToUpdate = "server.py";
 
   const newFilePath = `${__dirname}/../templates/default/${nameOfFileToUpdate}`;
 
