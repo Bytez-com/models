@@ -76,6 +76,7 @@ def authorize(event_name, props):
 def analytics(event_name, request_props):
     if DISABLE_ANALYTICS:
         return
+
     # remember, props is a pointer
     request_props = deepcopy(request_props)
 
@@ -188,7 +189,7 @@ try:
                 error=str(error),
                 # leaving stack trace out for now, we should have an argument validator function that
                 # provides more insightful data to the user
-                #    stack_trace=stack_trace
+                stack_trace=stack_trace,
             ),
             422,
         )
