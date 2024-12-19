@@ -195,7 +195,7 @@ try:
         )
 
     @app.route("/health", methods=["GET"])
-    def health_check():
+    async def health_check():
         return "", 200
 
     @app.route("/", defaults={"path": ""})
@@ -204,8 +204,8 @@ try:
         return "", 204
 
     @app.route("/run", methods=["POST"])
-    # @track_analytics(event_name="Model Inference")
-    async def run():
+    @track_analytics(event_name="Model Inference")
+    def run():
         return run_endpoint_handler(request)
 
     @app.route("/stats/cpu/memory", methods=["GET"])
