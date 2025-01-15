@@ -26,7 +26,7 @@ class Test:
         os.environ["MODEL_ID"] = self.MODEL_ID
 
     def print_test_info(self):
-        model_types = [self.model_type, self.TASK, self.SUB_TASK, self.MODEL_ID, self.ARCHITECTURE]
+        model_types = [self.model_type, self.TASK, self.SUB_TASK, self.MODEL_ID, self.ARCHITECTURE, self.DEVICE]
 
         line = " -> ".join(model_types)
 

@@ -34,6 +34,7 @@ args_dict = {
 
 kwargs = {"max_new_tokens": 50}
 
+# NOTE if the architecture is not in the list below, it is not guaranteed to be supported
 
 tests = [
     # NOTE
@@ -58,18 +59,96 @@ tests = [
         args_dict=args_dict,
         kwargs=kwargs,
     ),
-    # NOTE Has a bug where multiple gpus throw an index error because not all tensors are on the same gpu
-    # come back to this and see if there's a work around
-    # Test(
-    #     model_type="architecture registry",
-    #     MODEL_ID="Qwen/Qwen2-VL-2B-Instruct",
-    #     DEVICE="AUTO",
-    #     TASK=TASK,
-    #     SUB_TASK=SUB_TASK,
-    #     ARCHITECTURE="Qwen2VLForConditionalGeneration",
-    #     args_dict=args_dict,
-    #     kwargs=kwargs,
-    # ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="Qwen/Qwen2-VL-2B-Instruct",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="Qwen2VLForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="prithivMLmods/Qwen2-VL-Math-Prase-2B-Instruct",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="Qwen2VLForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="Lemorra/Qwen2-VL",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="Qwen2VLForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="fredaddy/Qwen-VL-7B-2",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="Qwen2VLForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="MissFlash/qwen2-7b-instruct-amazon-description-merged",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="Qwen2VLForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="andrewhinh/qwen2-vl-7b-instruct-full-sft",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="Qwen2VLForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="llava-hf/llava-v1.6-vicuna-7b-hf",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="LlavaNextForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="llava-hf/llava-onevision-qwen2-0.5b-ov-hf",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="LlavaOnevisionForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
+    Test(
+        model_type="architecture registry",
+        MODEL_ID="lamm-mit/Cephalo-Idefics-2-vision-8b-alpha",
+        DEVICE="AUTO",
+        TASK=TASK,
+        SUB_TASK=SUB_TASK,
+        ARCHITECTURE="Idefics2ForConditionalGeneration",
+        args_dict=args_dict,
+        kwargs=kwargs,
+    ),
     # NOTE works
     Test(
         model_type="architecture registry",

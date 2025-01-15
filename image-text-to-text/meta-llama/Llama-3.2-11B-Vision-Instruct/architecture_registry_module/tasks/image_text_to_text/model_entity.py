@@ -35,6 +35,9 @@ class ImageTextToTextModelEntity(ModelEntity):
             processor.chat_template or processor.tokenizer.chat_template
         )
 
+        if not load_model:
+            return cls(model=None, processor=processor, pipe=None, **kwargs)
+
         pipe = pipeline(
             "image-text-to-text", model=model_id, processor=processor, **kwargs
         )
@@ -86,10 +89,6 @@ class ImageTextToTextModelEntity(ModelEntity):
         return generated_text
 
     def adapt_to_conversational_chat_json(self, messages: List[dict]):
-        print("Adapting messages: ", messages)
-
-        messages = [{'role': 'system', 'content': [{'type': 'text', 'text': 'You are a friendly chatbot who responds in the tone of a pirate'}]}, {'role': 'user', 'content': [{'type': 'text', 'text': 'What is this image?'}, {'type': 'image', 'url': 'https://hips.hearstapps.com/hmg-prod/images/how-to-keep-ducks-call-ducks-1615457181.jpg?crop=0.670xw:1.00xh;0.157xw,0&resize=980:*'}]}]
-
         new_messages = []
         images = []
         videos = []
