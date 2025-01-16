@@ -1,8 +1,7 @@
 from collections import OrderedDict
 from transformers import pipeline
 from environment import MODEL_ID, TASK, DEVICE
-
-print("Loading model...")
+from validate_pipe import validate_pipe
 
 
 # construct as a set to dedupe, then turn into list
@@ -63,6 +62,8 @@ def try_loading():
 
 pipe = try_loading()
 
+# this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
+validate_pipe(pipe)
 
 print("Model loaded")
 
