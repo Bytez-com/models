@@ -10,7 +10,7 @@ def model_run_generator(*args, params: dict):
     streamer: SingleTokenStreamer = pipe._forward_params.get("streamer")
 
     streamer = SingleTokenStreamer(
-            tokenizer=pipe.tokenizer, skip_prompt=False, skip_special_tokens=True
+            tokenizer=pipe.tokenizer, skip_prompt=True, skip_special_tokens=True
     )
 
     params['streamer'] = streamer
