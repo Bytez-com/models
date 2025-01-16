@@ -133,6 +133,7 @@ class Registry:
 
                     return pipe
                 except Exception as exception:
+                    print(exception)
                     collected_exception = exception
 
         raise collected_exception
