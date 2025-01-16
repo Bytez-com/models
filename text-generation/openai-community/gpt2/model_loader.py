@@ -3,8 +3,6 @@ from transformers import pipeline
 from environment import MODEL_ID, TASK, DEVICE
 from validate_pipe import validate_pipe
 
-print("Loading model...")
-
 
 # construct as a set to dedupe, then turn into list
 FALL_BACK_DEVICES = [
