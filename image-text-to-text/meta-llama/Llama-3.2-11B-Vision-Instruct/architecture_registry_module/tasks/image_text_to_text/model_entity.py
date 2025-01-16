@@ -71,6 +71,13 @@ class ImageTextToTextModelEntity(ModelEntity):
 
         output = self.generate(adapted_messages, images, videos, **kwargs)
 
+        last_message = output[-1]
+
+        last_message_content = last_message['content']
+
+        last_message['role'] = 'assistant'
+        last_message['content'] = [{"type": "text", "text": last_message_content}]
+
         return output
 
     def generate(self, text, images, videos, **kwargs):

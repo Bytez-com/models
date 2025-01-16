@@ -25,7 +25,9 @@ class Idefics3ForConditionalGeneration(ImageTextToTextModelEntity):
 
         output = self.generate(prompt, images, **kwargs)
 
-        return output
+        output_messages = messages + [{"role": 'assistant', "content": [{"type": 'text', "text": output}]}]
+
+        return output_messages
 
     def generate(self, text, images, **kwargs):
         inputs = self.processor(text=text, images=images, return_tensors="pt")
@@ -42,7 +44,7 @@ class Idefics3ForConditionalGeneration(ImageTextToTextModelEntity):
         new_generated_ids = generated_ids[0][len(input_ids) :]
 
         formatted_text: str = self.processor.decode(
-            new_generated_ids, skip_special_tokens=False
+            new_generated_ids, skip_special_tokens=True
         )
 
         formatted_text = formatted_text.strip()

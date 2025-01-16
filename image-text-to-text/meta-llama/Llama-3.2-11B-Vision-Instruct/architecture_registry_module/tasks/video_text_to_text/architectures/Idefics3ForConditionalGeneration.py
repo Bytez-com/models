@@ -57,7 +57,9 @@ class Idefics3ForConditionalGeneration(VideoTextToTextModelEntity):
 
         output = self.generate(prompt, videos, **kwargs)
 
-        return output
+        output_messages = messages + [{"role": 'assistant', "content": [{"type": 'text', "text": output}]}]
+
+        return output_messages
 
     def generate(self, text, videos, **kwargs):
 

@@ -17,7 +17,7 @@ class AudioTextToTextModelEntity(ModelEntity):
         first_arg = args[0]
 
         if isinstance(first_arg, str):
-            # this is the standard input, which is text and images
+            # this is the standard input, which is text and audios
             return self.run_inference_default(*args, **kwargs)
 
         # supports chat messages
@@ -41,7 +41,9 @@ class AudioTextToTextModelEntity(ModelEntity):
 
         output = self.generate(text, audios, **kwargs)
 
-        return output
+        output_messages = messages + [{"role": 'assistant', "content": [{"type": 'text', "text": output}]}]
+
+        return output_messages
 
     def generate(self, text, audios, **kwargs):
         kwargs = {**kwargs, "streamer": kwargs.get("streamer")}

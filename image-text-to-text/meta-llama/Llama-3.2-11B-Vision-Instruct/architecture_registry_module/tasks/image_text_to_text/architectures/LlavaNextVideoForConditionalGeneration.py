@@ -67,7 +67,9 @@ class LlavaNextVideoForConditionalGeneration(VideoTextToTextModelEntity):
 
         output = self.generate(text, videos, **kwargs)
 
-        return output
+        output_messages = messages + [{"role": 'assistant', "content": [{"type": 'text', "text": output}]}]
+
+        return output_messages
 
     def generate(self, text, videos, **kwargs):
         if videos is None:
