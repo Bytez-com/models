@@ -8,6 +8,7 @@ class ModelEntity:
     model: PreTrainedModel
     processor: Callable
     _forward_params: dict = field(init=True, default_factory=dict)
+    pipe: Callable = None
 
     @classmethod
     def load_model_from_model_id(cls, model_id: str, **kwargs):
@@ -37,8 +38,12 @@ class ModelEntity:
         return self.processor.tokenizer
 
     def run_inference(self, *args, **kwargs):
-
-        return
+        pass
 
     def __call__(self, *args, **kwargs):
-        return self.run_inference(*args, **{**kwargs, **self._forward_params})
+        kwargs = {**kwargs, **self._forward_params}
+
+        if self.pipe:
+            return self.pipe(*args, **kwargs)
+
+        return self.run_inference(*args, **kwargs)

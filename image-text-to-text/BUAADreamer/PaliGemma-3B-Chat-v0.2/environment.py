@@ -12,8 +12,6 @@ os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = os.environ.get(
 
 TASK = os.environ.get("TASK")
 
-SUB_TASK = os.environ.get("SUB_TASK")
-
 MODEL_ID = os.environ.get("MODEL_ID")
 
 # purely for debug, useful when looking at container logs in production, helps make sense of model DL and load times

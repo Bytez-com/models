@@ -4,7 +4,8 @@ import importlib.util
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from transformers import AutoConfig
+import traceback
+from transformers import PretrainedConfig
 from environment import TASK, MODEL_ID, DEVICE
 from architecture_registry_module.classes.model_entity import (
     ModelEntity,
@@ -42,27 +43,47 @@ class Registry:
         task = to_underscore_format(task)
 
         # get the architecture
-        config = AutoConfig.from_pretrained(model_id)
-        model_architecture = config.architectures[0]
+        config = PretrainedConfig.get_config_dict(model_id)
+        model_architecture = config[0]["architectures"][0]
 
         # Specify the file path
-        file_path = f"{WORKING_DIR}/architecture_registry_module/tasks/{task}/architectures/{model_architecture}.py"
+
+        task_directory = f"{WORKING_DIR}/architecture_registry_module/tasks/{task}"
+
+        default_module_path = f"{task_directory}/model_entity.py"
+
+        # NOTE this handles modules that need additional files bundled up with them, i.e. the module is accessed via directory
+        module_dir_path = f"{task_directory}/architectures/{model_architecture}/{model_architecture}.py"
+
+        file_path = f"{task_directory}/architectures/{model_architecture}.py"
 
         # Get the module name from the file name
         module_name = Path(file_path).stem
 
         # Load the module dynamically
-        spec = importlib.util.spec_from_file_location(module_name, file_path)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
 
-        # get the model entity from the module,
-        # "model_cls" is a special variable name added to every ModelEntity sub class
-        #  it acts as a uniform lookup key for each module
-        model_entity_cls: ModelEntity = getattr(module, "model_cls")
+        modules_to_attempt_loading = [file_path, module_dir_path, default_module_path]
 
-        return model_entity_cls
+        for path in modules_to_attempt_loading:
+            print(f"\nAttempting to load module from path: {path}\n")
+            try:
+                spec = importlib.util.spec_from_file_location(module_name, path)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+
+                # get the model entity from the module,
+                # "model_cls" is a special variable name added to every ModelEntity sub class
+                #  it acts as a uniform lookup key for each module
+                model_entity_cls: ModelEntity = getattr(module, "model_cls")
+
+                return model_entity_cls
+            except:
+                exception = traceback.format_exc()
+                print(exception)
+                pass
+
+        raise Exception(exception)
 
     @staticmethod
     def get_model_entity(
@@ -112,6 +133,7 @@ class Registry:
 
                     return pipe
                 except Exception as exception:
+                    print(exception)
                     collected_exception = exception
 
         raise collected_exception

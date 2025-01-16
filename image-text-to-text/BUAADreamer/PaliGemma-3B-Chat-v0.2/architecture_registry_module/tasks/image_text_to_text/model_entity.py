@@ -1,24 +1,48 @@
-from typing import List, Dict
+from typing import List
 from dataclasses import dataclass
-from transformers import AutoModelForVision2Seq
+from transformers import AutoProcessor, pipeline
 
 from architecture_registry_module.classes.model_entity import ModelEntity
-from architecture_registry_module.classes.messages import Messages
-
-
-from PIL import Image
-
-import requests
 
 
 @dataclass
 class ImageTextToTextModelEntity(ModelEntity):
-    image_token: str = "<|image|><|begin_of_text|>"
+    @classmethod
+    def load_processor_from_model_id(cls, model_id: str, **kwargs):
+        # limit the input image size to 256 min pixels and 1080 max pixels to prevent gpu OOM
+        min_pixels = 256 * 28 * 28
+        max_pixels = 1080 * 28 * 28
+
+        processor = AutoProcessor.from_pretrained(
+            model_id, min_pixels=min_pixels, max_pixels=max_pixels, **kwargs
+        )
+
+        return processor
 
     @classmethod
-    def load_model_from_model_id(cls, model_id: str, **kwargs):
-        model = AutoModelForVision2Seq.from_pretrained(model_id, **kwargs)
-        return model
+    def load_from_model_id(
+        cls, model_id: str, load_model=True, load_processor=True, **kwargs
+    ):
+
+        processor = (
+            cls.load_processor_from_model_id(model_id, **kwargs)
+            if load_processor
+            else None
+        )
+
+        # some models do not include a chat_template (they're missing "chat_template.json"), we default to the tokenizer's
+        processor.chat_template = (
+            processor.chat_template or processor.tokenizer.chat_template
+        )
+
+        if not load_model:
+            return cls(model=None, processor=processor, pipe=None, **kwargs)
+
+        pipe = pipeline(
+            "image-text-to-text", model=model_id, processor=processor, **kwargs
+        )
+
+        return cls(model=pipe.model, processor=processor, pipe=pipe)
 
     def __call__(self, *args, **kwargs):
         return self.run_inference(*args, **kwargs)
@@ -33,121 +57,79 @@ class ImageTextToTextModelEntity(ModelEntity):
         # supports chat messages
         return self.run_inference_chat(*args, **kwargs)
 
-    def run_inference_default(self, text, images, **kwargs):
+    def run_inference_default(self, text, images, videos=None, **kwargs):
+        output = self.generate(text, images, videos, **kwargs)
 
-        text_with_token = f"{self.image_token}{text}"
-
-        if isinstance(images, str):
-            image = Image.open(requests.get(images, stream=True).raw)
-            images = [image]
-
-        else:
-            new_images = []
-
-            for image in images:
-                pil_image = Image.open(requests.get(images, stream=True).raw)
-                new_images.append(pil_image)
-
-            images = new_images
-
-        inputs = self.processor(
-            text=text_with_token, images=images, return_tensors="pt"
-        ).to(self.model.device)
-
-        output = self.model.generate(
-            **inputs,
-            **kwargs,
-        )
-
-        decoded_ouput: str = self.processor.decode(
-            output[0],
-            #  strips formatting tokens used by the model to understand its inputs
-            skip_special_tokens=True,
-        )
-
-        # NOTE it's unclear as to whether or not the chat template applies white space, but for the sake of the user's sanity
-        # and our own, we strip the ends
-        sliced_output = decoded_ouput[len(text) :].strip()
-
-        return sliced_output
+        return output
 
     def run_inference_chat(self, *args, **kwargs):
         messages = args[0]
 
-        input_str_no_special_tokens, input_str, images = (
-            self.pre_process_conversational(messages=messages)
-        )
-
-        inputs = self.processor(text=input_str, images=images, return_tensors="pt").to(
-            self.model.device
-        )
-
-        output = self.model.generate(
-            **inputs,
-            **kwargs,
-        )
-
-        decoded_ouput: str = self.processor.decode(
-            output[0],
-            #  strips formatting tokens used by the model to understand its inputs
-            skip_special_tokens=True,
-        )
-
-        # NOTE it's unclear as to whether or not the chat template applies white space, but for the sake of the user's sanity
-        # and our own, we strip the ends
-        sliced_output = decoded_ouput[len(input_str_no_special_tokens) :].strip()
-
-        return sliced_output
-
-    def pre_process_conversational(self, messages: List[Dict]):
-
-        messages = Messages.from_json_list(messages=messages)
-
-        adapted_messages, images = self.adapt_to_conversational_chat_json(
+        adapted_messages, images, videos = self.adapt_to_conversational_chat_json(
             messages=messages
         )
 
-        input_ids = self.processor.tokenizer.apply_chat_template(
-            adapted_messages,
-            add_generation_prompt=True,
-            return_tensors="pt",
-        )
+        output = self.generate(adapted_messages, images, videos, **kwargs)
 
-        input_str_no_special_tokens = self.processor.decode(
-            input_ids[0],
-            #  strips formatting tokens used by the model to understand its inputs
-            skip_special_tokens=True,
-        )
+        last_message = output[-1]
 
-        input_str = self.processor.decode(
-            input_ids[0],
-            #  strips formatting tokens used by the model to understand its inputs
-            # skip_special_tokens=True,
-        )
+        last_message_content = last_message['content']
 
-        return input_str_no_special_tokens, input_str, images
+        last_message['role'] = 'assistant'
+        last_message['content'] = [{"type": "text", "text": last_message_content}]
 
-    def adapt_to_conversational_chat_json(self, messages: Messages):
-        adapted_messages = []
+        return output
+
+    def generate(self, text, images, videos, **kwargs):
+        kwargs = {**{"generate_kwargs": {"streamer": kwargs.get("streamer")}, **kwargs}}
+
+        if videos:
+            kwargs["videos"] = videos
+
+        if not images:
+            images = None
+
+        output = self.pipe(text=text, images=images, **kwargs)
+
+        generated_text = output[0]["generated_text"]
+
+        return generated_text
+
+    def adapt_to_conversational_chat_json(self, messages: List[dict]):
+        new_messages = []
         images = []
+        videos = []
 
-        for message in messages.items:
-            # accumulate the message as strings
-            message_strings = []
+        for message in messages:
 
-            for content_item in message.content_items:
-                type = content_item.type
-                content = content_item.value
+            new_content_items = []
 
-                if type == "text":
-                    message_strings.append(content)
+            for content_item in message["content"]:
+                new_content_item = content_item
 
-                elif type == "image_url":
-                    image = Image.open(requests.get(content, stream=True).raw)
-                    images.append(image)
+                type = content_item["type"]
 
-        message_text = "".join(message_strings)
+                if type == "image":
+                    image_url = content_item["url"]
 
-        adapted_messages.append({"role": message.role, "content": message_text})
+                    images.append(image_url)
+                    new_content_item = {"type": 'image'}
 
-        return adapted_messages, images
+                # some models can take in videos as multiple images
+                if type == "video":
+                    video_url = content_item["url"]
+                    new_content_item = {"type": 'image'}
+
+                    videos.append(video_url)
+
+                new_content_items.append(new_content_item)
+
+            new_message = {**message, "content": new_content_items}
+
+            new_messages.append(new_message)
+
+        return new_messages, images, videos
+
+
+# universal stub used by the model loader
+model_cls = ImageTextToTextModelEntity
