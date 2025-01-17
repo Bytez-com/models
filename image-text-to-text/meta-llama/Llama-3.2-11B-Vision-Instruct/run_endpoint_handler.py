@@ -2,12 +2,11 @@ from flask import jsonify, Response
 
 from utils import model_run_generator
 from model import model_run
-import numpy as np
 
 
 def run_endpoint_handler(request):
     params = request.json.get("params", {})
-    text_input = request.json["text_input"]
+    text_input = request.json["text"]
     images = request.json.get("images")
     stream = request.json.get("stream", False)
 
