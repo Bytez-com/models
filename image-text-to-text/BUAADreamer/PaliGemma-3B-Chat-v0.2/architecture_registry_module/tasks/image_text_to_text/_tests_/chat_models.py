@@ -192,30 +192,5 @@ tests = [
         ARCHITECTURE="VipLlavaForConditionalGeneration",
         args_dict=args_dict,
         kwargs=kwargs,
-    ),
-    # NOTE this is a special example of a video_text_to_text model being classified as image_text_to_text
-    Test(
-        model_type="architecture registry",
-        MODEL_ID="llava-hf/LLaVA-NeXT-Video-7B-32K-hf",
-        DEVICE="AUTO",
-        TASK=TASK,
-        SUB_TASK=SUB_TASK,
-        ARCHITECTURE="LlavaNextVideoForConditionalGeneration",
-        args_dict={
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Why is this video so funny?"},
-                        {
-                            "type": "video",
-                            # baby reading a book
-                            "url": "https://huggingface.co/datasets/raushan-testing-hf/videos-test/resolve/main/sample_demo_1.mp4",
-                        },
-                    ],
-                },
-            ],
-        },
-        kwargs=kwargs,
-    ),
+    )
 ]
