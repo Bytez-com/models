@@ -1,2 +1,0 @@
-Pillow==11.0.0
-transformers==4.48.0
