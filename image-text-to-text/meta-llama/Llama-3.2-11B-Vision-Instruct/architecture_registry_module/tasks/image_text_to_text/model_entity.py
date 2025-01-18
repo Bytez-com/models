@@ -73,10 +73,10 @@ class ImageTextToTextModelEntity(ModelEntity):
 
         last_message = output[-1]
 
-        last_message_content = last_message['content']
+        last_message_content = last_message["content"]
 
-        last_message['role'] = 'assistant'
-        last_message['content'] = [{"type": "text", "text": last_message_content}]
+        last_message["role"] = "assistant"
+        last_message["content"] = [{"type": "text", "text": last_message_content}]
 
         return output
 
@@ -86,6 +86,7 @@ class ImageTextToTextModelEntity(ModelEntity):
         if videos:
             kwargs["videos"] = videos
 
+        # NOTE if images is an empty array, set it to none, it will fail on some models otherwise
         if not images:
             images = None
 
@@ -113,12 +114,12 @@ class ImageTextToTextModelEntity(ModelEntity):
                     image_url = content_item["url"]
 
                     images.append(image_url)
-                    new_content_item = {"type": 'image'}
+                    new_content_item = {"type": "image"}
 
                 # some models can take in videos as multiple images
                 if type == "video":
                     video_url = content_item["url"]
-                    new_content_item = {"type": 'image'}
+                    new_content_item = {"type": "image"}
 
                     videos.append(video_url)
 

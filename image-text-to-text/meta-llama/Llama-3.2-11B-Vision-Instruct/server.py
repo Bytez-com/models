@@ -195,7 +195,7 @@ try:
         )
 
     @app.route("/health", methods=["GET"])
-    def health_check():
+    async def health_check():
         return "", 200
 
     @app.route("/", defaults={"path": ""})

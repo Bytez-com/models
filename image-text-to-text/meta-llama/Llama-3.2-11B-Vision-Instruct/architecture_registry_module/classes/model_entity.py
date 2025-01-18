@@ -7,8 +7,8 @@ from transformers import PreTrainedModel, AutoProcessor, AutoModel
 class ModelEntity:
     model: PreTrainedModel
     processor: Callable
-    _forward_params: dict = field(init=True, default_factory=dict)
     pipe: Callable = None
+    _forward_params: dict = field(init=True, default_factory=dict)
 
     @classmethod
     def load_model_from_model_id(cls, model_id: str, **kwargs):
