@@ -1,5 +1,4 @@
 #!/bin/sh
-
 pip install -r /server/requirements.txt
 # TODO remove this once all images are updated to include flask async pre installed
 pip install flask[async]
