@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from io import BytesIO
 
 import requests
+import numpy as np
 
 from architecture_registry_module.classes.model_entity import ModelEntity
 
@@ -17,6 +18,7 @@ class VideoTextToTextModelEntity(ModelEntity):
             return self.run_inference_default(*args, **kwargs)
 
         # supports chat messages
+        first_arg: list
         return self.run_inference_chat(*args, **kwargs)
 
     def run_inference_default(self, text, videos=None, **kwargs):
@@ -39,7 +41,7 @@ class VideoTextToTextModelEntity(ModelEntity):
                 type = content_item["type"]
 
                 if type == "video":
-                    video_url = content_item['url']
+                    video_url = content_item["url"]
 
                     new_content_item = {"type": "video"}
 
@@ -59,6 +61,26 @@ class VideoTextToTextModelEntity(ModelEntity):
         video_bytes = BytesIO(response.content)
 
         return video_bytes
+
+    def read_video_pyav(self, container, indices):
+        """
+        Decode the video with PyAV decoder.
+        Args:
+            container (`av.container.input.InputContainer`): PyAV container.
+            indices (`List[int]`): List of frame indices to decode.
+        Returns:
+            result (np.ndarray): np array of decoded frames of shape (num_frames, height, width, 3).
+        """
+        frames = []
+        container.seek(0)
+        start_index = indices[0]
+        end_index = indices[-1]
+        for i, frame in enumerate(container.decode(video=0)):
+            if i > end_index:
+                break
+            if i >= start_index and i in indices:
+                frames.append(frame)
+        return np.stack([x.to_ndarray(format="rgb24") for x in frames])
 
 
 # universal stub used by the model loader

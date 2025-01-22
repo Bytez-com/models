@@ -11,27 +11,6 @@ import av
 import numpy as np
 
 
-def read_video_pyav(container, indices):
-    """
-    Decode the video with PyAV decoder.
-    Args:
-        container (`av.container.input.InputContainer`): PyAV container.
-        indices (`List[int]`): List of frame indices to decode.
-    Returns:
-        result (np.ndarray): np array of decoded frames of shape (num_frames, height, width, 3).
-    """
-    frames = []
-    container.seek(0)
-    start_index = indices[0]
-    end_index = indices[-1]
-    for i, frame in enumerate(container.decode(video=0)):
-        if i > end_index:
-            break
-        if i >= start_index and i in indices:
-            frames.append(frame)
-    return np.stack([x.to_ndarray(format="rgb24") for x in frames])
-
-
 @dataclass
 class LlavaNextVideoForConditionalGeneration(VideoTextToTextModelEntity):
     @classmethod
@@ -60,8 +39,10 @@ class LlavaNextVideoForConditionalGeneration(VideoTextToTextModelEntity):
         )
 
         output = self.generate(text, videos, **kwargs)
-        
-        output_messages = messages + [{"role": 'assistant', "content": [{"type": 'text', "text": output}]}]
+
+        output_messages = messages + [
+            {"role": "assistant", "content": [{"type": "text", "text": output}]}
+        ]
 
         return output_messages
 
@@ -79,7 +60,7 @@ class LlavaNextVideoForConditionalGeneration(VideoTextToTextModelEntity):
             # sample uniformly 8 frames from the video, can sample more for longer videos
             total_frames = container.streams.video[0].frames
             indices = np.arange(0, total_frames, total_frames / 8).astype(int)
-            clip = read_video_pyav(container, indices)
+            clip = self.read_video_pyav(container, indices)
 
             videos[index] = clip
 
