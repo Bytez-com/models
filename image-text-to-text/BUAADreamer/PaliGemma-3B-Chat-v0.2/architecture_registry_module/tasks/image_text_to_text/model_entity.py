@@ -55,6 +55,7 @@ class ImageTextToTextModelEntity(ModelEntity):
             return self.run_inference_default(*args, **kwargs)
 
         # supports chat messages
+        first_arg: list
         return self.run_inference_chat(*args, **kwargs)
 
     def run_inference_default(self, text, images, videos=None, **kwargs):
