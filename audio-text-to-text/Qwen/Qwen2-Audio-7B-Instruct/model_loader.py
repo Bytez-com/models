@@ -46,23 +46,30 @@ class Registry:
         config = PretrainedConfig.get_config_dict(model_id)
         model_architecture = config[0]["architectures"][0]
 
-        # Specify the file path
-
         task_directory = f"{WORKING_DIR}/architecture_registry_module/tasks/{task}"
 
-        default_module_path = f"{task_directory}/model_entity.py"
-
-        # NOTE this handles modules that need additional files bundled up with them, i.e. the module is accessed via directory
-        module_dir_path = f"{task_directory}/architectures/{model_architecture}/{model_architecture}.py"
-
+        # NOTE if there is a handler for a given architecture, this is what's loaded
         file_path = f"{task_directory}/architectures/{model_architecture}.py"
+
+        # NOTE if there is a handler, but that handler needs multiple files and thus is held in a directory, e.g. ../image-text-to-text/MllamaForConditionalGeneration/MllamaForConditionalGeneration.py
+        file_is_in_folder_path = f"{task_directory}/architectures/{model_architecture}/{model_architecture}.py"
+
+        # NOTE if there is no handler for a given architecture, this is what's loaded
+        # currently image-text-to-text loads models via pipe(), the idea is that you don't need a handler for every arch, some work out of the box
+        fallback_module_path = f"{task_directory}/model_entity.py"
 
         # Get the module name from the file name
         module_name = Path(file_path).stem
 
-        # Load the module dynamically
-
-        modules_to_attempt_loading = [file_path, module_dir_path, default_module_path]
+        # we try each of these one at a time, it's a waterfall of defaulting
+        modules_to_attempt_loading = [
+            # custom specific handler for given architecture
+            file_path,
+            # custom specific handler for given architecture that
+            file_is_in_folder_path,
+            # fallback to the base class for a given task, e.g. image-text-to-text's base class attempts loading via pipeline()
+            fallback_module_path,
+        ]
 
         for path in modules_to_attempt_loading:
             print(f"\nAttempting to load module from path: {path}\n")
@@ -127,11 +134,9 @@ class Registry:
                         **kwargs,
                     )
 
-                    pipe = model_entity
-
                     print(f"Loaded model via '{loading_method}' on device: ", device)
 
-                    return pipe
+                    return model_entity
                 except Exception as exception:
                     print(exception)
                     collected_exception = exception
