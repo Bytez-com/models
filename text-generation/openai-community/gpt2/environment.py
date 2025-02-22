@@ -42,6 +42,8 @@ API_KEY = os.environ.get("KEY")
 
 HF_API_KEY = os.environ.get("HF_API_KEY")
 
+SYSTEM_LOGS_PATH = os.environ.get("SYSTEM_LOGS_PATH", "/var/log/cloud-init-output.log")
+
 CONSTANTS_DICT = {
     "TASK": TASK,
     "MODEL": MODEL_ID,
@@ -56,6 +58,7 @@ CONSTANTS_DICT = {
             "START_FLASK_DEBUG_SERVER": START_FLASK_DEBUG_SERVER,
             "USE_PRODUCTION_ANALYTICS_ENDPOINT": USE_PRODUCTION_ANALYTICS_ENDPOINT,
             "HF_API_KEY": HF_API_KEY,
+            "SYSTEM_LOGS_PATH": SYSTEM_LOGS_PATH,
         }
         if DISABLE_ANALYTICS
         else {}
