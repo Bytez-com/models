@@ -209,7 +209,7 @@ try:
         return run_endpoint_handler(request)
 
     @app.route("/logs", methods=["GET"])
-    def logs():
+    async def logs():
         log_file_path = "/var/log/cloud-init-output.log"
 
         with open(log_file_path, "r") as file:
