@@ -195,7 +195,7 @@ try:
         )
 
     @app.route("/health", methods=["GET"])
-    def health_check():
+    async def health_check():
         return "", 200
 
     @app.route("/", defaults={"path": ""})
@@ -207,6 +207,14 @@ try:
     @track_analytics(event_name="Model Inference")
     def run():
         return run_endpoint_handler(request)
+
+    @app.route("/logs", methods=["GET"])
+    def logs():
+        log_file_path = "/var/log/cloud-init-output.log"
+
+        with open(log_file_path, "r") as file:
+            log_content = file.read()
+        return jsonify({"log": log_content}), 200
 
     @app.route("/stats/cpu/memory", methods=["GET"])
     def load_status():
