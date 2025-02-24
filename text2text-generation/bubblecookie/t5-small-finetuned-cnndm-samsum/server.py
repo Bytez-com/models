@@ -13,8 +13,25 @@ from environment import (
     START_FLASK_DEBUG_SERVER,
     USE_PRODUCTION_ANALYTICS_ENDPOINT,
     API_KEY,
+    FILES_SIZE_GB,
+    MODEL_SIZE_GB,
+    LOG_LOADING,
+    DEVICE,
+    SYSTEM_LOGS_PATH,
 )
-from stats import SYSTEM_RAM_TRACKER
+from loading_tracker import LoadingTracker
+import multiprocessing
+import threading
+
+# Construct class for tracking downloading and loading models
+LOADING_TRACKER = LoadingTracker(
+    task=TASK,
+    model_id=MODEL_ID,
+    device=DEVICE,
+    files_size_in_GB=FILES_SIZE_GB,
+    model_size_in_GB=MODEL_SIZE_GB,
+    logging_enabled=LOG_LOADING,
+)
 
 
 ######################### ANALYTICS LOGIC HERE #########################
@@ -195,7 +212,7 @@ try:
         )
 
     @app.route("/health", methods=["GET"])
-    def health_check():
+    async def health_check():
         return "", 200
 
     @app.route("/", defaults={"path": ""})
@@ -206,31 +223,63 @@ try:
     @app.route("/run", methods=["POST"])
     @track_analytics(event_name="Model Inference")
     def run():
+        from run_endpoint_handler import run_endpoint_handler
+
         return run_endpoint_handler(request)
 
-    @app.route("/stats/cpu/memory", methods=["GET"])
-    def load_status():
-        stats = SYSTEM_RAM_TRACKER.get_ram_stats()
+    @app.route("/load_model", methods=["GET"])
+    def load_model():
+        # NOTE threading is required to ensure we aren't blocking other requests
+        def run_import():
+            from run_endpoint_handler import run_endpoint_handler  # noqa: F401
 
-        peak_system_ram_usage_GB = stats["peak_system_ram_usage_GB"]
-        peak_model_ram_usage_GB = stats["peak_model_ram_usage_GB"]
+        thread = threading.Thread(target=run_import)
+
+        thread.start()
+        thread.join()
+
+        return jsonify({"success": True})
+
+    @app.route("/status", methods=["GET"])
+    async def load_status():
+
+        with open(SYSTEM_LOGS_PATH, "r") as file:
+            log_content = file.read()
+
+        progress_download = LOADING_TRACKER.percent_progress_download.value
+        progress_load = LOADING_TRACKER.percent_progress_load.value
 
         # return response
         return jsonify(
             {
-                "peak_system_ram_usage_GB": peak_system_ram_usage_GB,
-                "peak_model_ram_usage_GB": peak_model_ram_usage_GB,
+                "logs": log_content,
+                "logs_path": SYSTEM_LOGS_PATH,
+                "progress_percent_download": progress_download,
+                "progress_percent_load": progress_load,
+                "download_done": bool(LOADING_TRACKER.downloading_is_done),
+                "done": bool(LOADING_TRACKER.loading_is_done.value),
+                "memory_stats": {
+                    "device": DEVICE,
+                    "MODEL_SIZE_GB": round(MODEL_SIZE_GB, 2),
+                    "available_GB": round(LOADING_TRACKER.available_GB.value, 2),
+                    "peak_GB": round(LOADING_TRACKER.peak_GB.value, 2),
+                    "current_GB": round(LOADING_TRACKER.current_GB.value, 2),
+                },
+                "debug": {
+                    "elapsed_time_s": LOADING_TRACKER.elapsed_time_in_seconds,
+                },
             },
         )
 
-    # NOTE find out how much memory is being used to run the program before loading the model
-    # NOTE this is only accurate because the flask app is run from gunicorn, if we wanted debug to be more accurate
-    # we'd want to do this + then loading the model AFTER the flask server starts in a thread
-    SYSTEM_RAM_TRACKER.set_baseline_utilization_GB()
+    # Start tracking loading progress
+    loading_tracker_process = multiprocessing.Process(
+        target=LOADING_TRACKER.load_model_with_tracking,
+        args=[f"http://localhost:{PORT}/load_model"],
+    )
 
-    # NOTE model is loaded as a side effect of this import, this has to happen after all other setup logic
-    from run_endpoint_handler import run_endpoint_handler
+    loading_tracker_process.start()
 
+    # start the flask server
     if START_FLASK_DEBUG_SERVER:
         app.run(port=PORT, debug=False)
 

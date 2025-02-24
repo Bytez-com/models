@@ -15,6 +15,7 @@ from environment import (
     API_KEY,
     FILES_SIZE_GB,
     MODEL_SIZE_GB,
+    LOG_LOADING,
     DEVICE,
     SYSTEM_LOGS_PATH,
 )
@@ -29,6 +30,7 @@ LOADING_TRACKER = LoadingTracker(
     device=DEVICE,
     files_size_in_GB=FILES_SIZE_GB,
     model_size_in_GB=MODEL_SIZE_GB,
+    logging_enabled=LOG_LOADING,
 )
 
 

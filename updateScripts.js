@@ -1,6 +1,16 @@
-const { readdir, readFile, writeFile } = require("fs").promises;
+const { stat, readdir, readFile, writeFile } = require("fs").promises;
 
 async function main() {
+  const nameOfFileToUpdate = "serve.sh";
+
+  const newFilePath = `${__dirname}/../templates/default/${nameOfFileToUpdate}`;
+
+  const newFileBuffer = await readFile(newFilePath);
+
+  const newFileContents = newFileBuffer.toString();
+
+  console.log("New file is:\n\n", newFileContents);
+
   const files = await readdir(__dirname, {
     recursive: true
   });
@@ -24,16 +34,6 @@ async function main() {
     }
   }
 
-  const nameOfFileToUpdate = "serve.sh";
-
-  const newFilePath = `${__dirname}/../templates/default/${nameOfFileToUpdate}`;
-
-  const newFileBuffer = await readFile(newFilePath);
-
-  const newFileContents = newFileBuffer.toString();
-
-  console.log("New file is:\n\n", newFileContents);
-
   const updatedModels = [];
   const notUpdatedModels = [];
 
@@ -51,6 +51,17 @@ async function main() {
 
     // overwrite the target file with the new file contents
     try {
+      const exists = await stat(fileToUpdatePath)
+        .then(() => true)
+        .catch(() => false);
+
+      if (!exists) {
+        await writeFile(fileToUpdatePath, newFileBuffer);
+        updatedModels.push(modelPathObject);
+
+        continue;
+      }
+
       const buffer = await readFile(fileToUpdatePath);
       const oldFileContents = buffer.toString();
 

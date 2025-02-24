@@ -20,6 +20,9 @@ FILES_SIZE_GB = float(os.environ.get("FILES_SIZE_GB", "12345678"))
 # used for the model loading tracker
 MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "12345678"))
 
+# used for the model loading tracker
+LOG_LOADING = bool(os.environ.get("LOG_LOADING", "false"))
+
 # controls conditional compatibility logic to allow models to work on CPU only machines
 DEVICE = os.environ.get("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 
@@ -27,11 +30,11 @@ DEVICE = os.environ.get("DEVICE", "cuda" if torch.cuda.is_available() else "cpu"
 PORT = os.environ.get("PORT", 8002)
 
 # prevents calls to analytics when in the testing pipeline, or via instances api
-DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "false"))
+DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "true"))
 
 # Code is being run from gunicorn and not the debugger (flask will not start up)
 START_FLASK_DEBUG_SERVER = json.loads(
-    os.environ.get("START_FLASK_DEBUG_SERVER", "false")
+    os.environ.get("START_FLASK_DEBUG_SERVER", "true")
 )
 
 USE_PRODUCTION_ANALYTICS_ENDPOINT = json.loads(
@@ -58,6 +61,7 @@ CONSTANTS_DICT = {
             "MODEL_LOGGING": MODEL_LOGGING,
             "FILES_SIZE_GB": FILES_SIZE_GB,
             "MODEL_SIZE_GB": MODEL_SIZE_GB,
+            "LOG_LOADING": LOG_LOADING,
             "DISABLE_ANALYTICS": DISABLE_ANALYTICS,
             "START_FLASK_DEBUG_SERVER": START_FLASK_DEBUG_SERVER,
             "USE_PRODUCTION_ANALYTICS_ENDPOINT": USE_PRODUCTION_ANALYTICS_ENDPOINT,
