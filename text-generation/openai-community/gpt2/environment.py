@@ -14,7 +14,10 @@ TASK = os.environ.get("TASK")
 
 MODEL_ID = os.environ.get("MODEL_ID")
 
-# purely for debug, useful when looking at container logs in production, helps make sense of model DL and load times
+# used for the model loading tracker
+FILES_SIZE_GB = float(os.environ.get("FILES_SIZE_GB", "12345678"))
+
+# used for the model loading tracker
 MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "12345678"))
 
 # controls conditional compatibility logic to allow models to work on CPU only machines
@@ -53,6 +56,7 @@ CONSTANTS_DICT = {
     **(
         {
             "MODEL_LOGGING": MODEL_LOGGING,
+            "FILES_SIZE_GB": FILES_SIZE_GB,
             "MODEL_SIZE_GB": MODEL_SIZE_GB,
             "DISABLE_ANALYTICS": DISABLE_ANALYTICS,
             "START_FLASK_DEBUG_SERVER": START_FLASK_DEBUG_SERVER,
