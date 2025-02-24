@@ -1,7 +1,7 @@
 const { stat, readdir, readFile, writeFile } = require("fs").promises;
 
 async function main() {
-  const nameOfFileToUpdate = "serve.sh";
+  const nameOfFileToUpdate = "environment.py";
 
   const newFilePath = `${__dirname}/../templates/default/${nameOfFileToUpdate}`;
 

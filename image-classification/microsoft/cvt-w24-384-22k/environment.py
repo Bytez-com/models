@@ -30,11 +30,11 @@ DEVICE = os.environ.get("DEVICE", "cuda" if torch.cuda.is_available() else "cpu"
 PORT = os.environ.get("PORT", 8002)
 
 # prevents calls to analytics when in the testing pipeline, or via instances api
-DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "true"))
+DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "false"))
 
 # Code is being run from gunicorn and not the debugger (flask will not start up)
 START_FLASK_DEBUG_SERVER = json.loads(
-    os.environ.get("START_FLASK_DEBUG_SERVER", "true")
+    os.environ.get("START_FLASK_DEBUG_SERVER", "false")
 )
 
 USE_PRODUCTION_ANALYTICS_ENDPOINT = json.loads(
