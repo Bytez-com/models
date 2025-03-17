@@ -8,18 +8,6 @@ from requests import request
 import traceback
 
 
-def timer(func):
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"Function '{func.__name__}' took {elapsed_time:.4f} seconds to execute.")
-        return result
-
-    return wrapper
-
-
 @dataclass
 class LoadingTracker:
     task: str
@@ -30,38 +18,32 @@ class LoadingTracker:
     files_size_in_GB: float = 1
     model_size_in_GB: float = 1
 
-    percent_progress_download = multiprocessing.Value("d", 0.0)
-    percent_progress_load = multiprocessing.Value("d", 0.0)
-    download_GB_received = multiprocessing.Value("d", 0.0)
-    download_speed_MB_s = multiprocessing.Value("d", 0.0)
-
-    available_GB = multiprocessing.Value("d", 0.0)
-    peak_GB = multiprocessing.Value("d", 0.0)
-    current_GB = multiprocessing.Value("d", 0.0)
-
-    downloading_is_done = multiprocessing.Value("b", False)
-    loading_is_done = multiprocessing.Value("b", False)
-
     logger: callable = print
-    start_time = multiprocessing.Value("d", 0.0)
-    end_time = multiprocessing.Value("d", 0.0)
     logging_enabled: bool = False
+
+    def __post_init__(self):
+        self.percent_progress_download = multiprocessing.Value("d", 0.0)
+        self.percent_progress_load = multiprocessing.Value("d", 0.0)
+        self.download_GB_received = multiprocessing.Value("d", 0.0)
+        self.download_speed_MB_s = multiprocessing.Value("d", 0.0)
+
+        self.available_GB = multiprocessing.Value("d", 0.0)
+        self.peak_GB = multiprocessing.Value("d", 0.0)
+        self.current_GB = multiprocessing.Value("d", 0.0)
+
+        self.downloading_is_done = multiprocessing.Value("b", False)
+        self.loading_is_done = multiprocessing.Value("b", False)
+
+        self.start_time = multiprocessing.Value("d", 0.0)
+        self.end_time = multiprocessing.Value("d", 0.0)
 
     def mark_download_as_done(self):
         self.downloading_is_done.value = True
         self.percent_progress_download.value = 100.0
-        self.set_end_time()
 
     def mark_load_as_done(self):
         self.loading_is_done.value = True
         self.percent_progress_load.value = 100.0
-        self.set_end_time()
-
-    def set_start_time(self):
-        self.start_time.value = time.time()
-
-    def set_end_time(self):
-        self.end_time.value = time.time()
 
     @property
     def elapsed_time_in_seconds(self):
@@ -75,13 +57,12 @@ class LoadingTracker:
 
         return round(delta_in_seconds, 2)
 
-    @timer
     def load_model_with_tracking(
         self,
         # flexibly allow for a specif endpoint to be hit to load a model, e.g. http://localhost:8002/load_model
         load_model_endpoint: str,
     ):
-        self.set_start_time()
+        start_time = time.time()
 
         polling_rate_s = 1
 
@@ -105,6 +86,12 @@ class LoadingTracker:
         # if the model is loaded, these must be true
         self.mark_download_as_done()
         self.mark_load_as_done()
+
+        elapsed_time_seconds = time.time() - start_time
+
+        print(
+            f"load_model_with_tracking took: {round(elapsed_time_seconds, 2)} seconds"
+        )
 
         self.log_percent_done_loaded()
 
@@ -152,49 +139,52 @@ class LoadingTracker:
         interval_in_seconds=1,
         duration=60 * 10,
     ) -> multiprocessing.Process:
-        def _monitor_downloading():
-            initial_io = psutil.net_io_counters()
 
-            prev_MB_received = 0
-
-            for _ in range(duration // interval_in_seconds):
-
-                # consider downloading finished if we have a significantly strong signal indicating loading is in progress
-                if self.percent_progress_load.value > 2:
-                    self.mark_download_as_done()
-                    break
-
-                current_io = psutil.net_io_counters()
-
-                bytes_received = current_io.bytes_recv - initial_io.bytes_recv
-
-                MB_received = bytes_received / (1024 * 1024)
-
-                download_GB_received = MB_received / 1024
-
-                chunk_of_MB_received = MB_received - prev_MB_received
-
-                prev_MB_received = MB_received
-
-                percent_done = (download_GB_received / self.files_size_in_GB) * 100
-
-                # NOTE network monitoring is not exact, but pretty close to accurate
-                percent_done_rounded = self.bound_and_round(
-                    value=percent_done, upper_bound=100, lower_bound=0, decimals=2
-                )
-
-                download_speed_MB_s = chunk_of_MB_received / interval_in_seconds
-
-                self.percent_progress_download.value = percent_done_rounded
-                self.download_GB_received.value = download_GB_received
-                self.download_speed_MB_s.value = download_speed_MB_s
-
-                self.log_percent_done_downloaded()
-
-                time.sleep(interval_in_seconds)
-
-        thread = multiprocessing.Process(target=_monitor_downloading)
+        thread = multiprocessing.Process(
+            target=self._monitor_downloading, args=[duration, interval_in_seconds]
+        )
         return thread
+
+    def _monitor_downloading(self, duration, interval_in_seconds):
+        initial_io = psutil.net_io_counters()
+
+        prev_MB_received = 0
+
+        for _ in range(duration // interval_in_seconds):
+
+            # consider downloading finished if we have a significantly strong signal indicating loading is in progress
+            if self.percent_progress_load.value > 2:
+                self.mark_download_as_done()
+                break
+
+            current_io = psutil.net_io_counters()
+
+            bytes_received = current_io.bytes_recv - initial_io.bytes_recv
+
+            MB_received = bytes_received / (1024 * 1024)
+
+            download_GB_received = MB_received / 1024
+
+            chunk_of_MB_received = MB_received - prev_MB_received
+
+            prev_MB_received = MB_received
+
+            percent_done = (download_GB_received / self.files_size_in_GB) * 100
+
+            # NOTE network monitoring is not exact, but pretty close to accurate
+            percent_done_rounded = self.bound_and_round(
+                value=percent_done, upper_bound=100, lower_bound=0, decimals=2
+            )
+
+            download_speed_MB_s = chunk_of_MB_received / interval_in_seconds
+
+            self.percent_progress_download.value = percent_done_rounded
+            self.download_GB_received.value = download_GB_received
+            self.download_speed_MB_s.value = download_speed_MB_s
+
+            self.log_percent_done_downloaded()
+
+            time.sleep(interval_in_seconds)
 
     def monitor_memory_usage_cuda(
         self,

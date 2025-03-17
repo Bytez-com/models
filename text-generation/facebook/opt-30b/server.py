@@ -20,17 +20,12 @@ if __name__ == "__main__" or __name__ == "server":
         LOG_LOADING,
         DEVICE,
         SYSTEM_LOGS_PATH,
-        DISABLE_PARALLEL_LOADING,
     )
     from loading_tracker import LoadingTracker
     import multiprocessing
     import threading
 
-    # serially loading does not work with the spawn method
-    if not DISABLE_PARALLEL_LOADING:
-        multiprocessing.set_start_method(
-            "spawn", force=True
-        )  # Set start method to 'spawn'
+    multiprocessing.set_start_method("spawn", force=True)  # Set start method to 'spawn'
 
     # Construct class for tracking downloading and loading models
     LOADING_TRACKER = LoadingTracker(
@@ -247,17 +242,12 @@ if __name__ == "__main__" or __name__ == "server":
 
         @app.route("/status", methods=["GET"])
         async def load_status():
-
-            with open(SYSTEM_LOGS_PATH, "r") as file:
-                log_content = file.read()
-
             progress_download = LOADING_TRACKER.percent_progress_download.value
             progress_load = LOADING_TRACKER.percent_progress_load.value
 
             # return response
             return jsonify(
                 {
-                    "logs": log_content,
                     "logs_path": SYSTEM_LOGS_PATH,
                     "progress_percent_download": progress_download,
                     "progress_percent_load": progress_load,

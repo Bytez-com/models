@@ -1,7 +1,7 @@
 const { stat, readdir, readFile, writeFile } = require("fs").promises;
 
 async function main() {
-  const nameOfFileToUpdate = "environment.py";
+  const nameOfFileToUpdate = "loading_tracker.py";
 
   const newFilePath = `${__dirname}/../templates/default/${nameOfFileToUpdate}`;
 

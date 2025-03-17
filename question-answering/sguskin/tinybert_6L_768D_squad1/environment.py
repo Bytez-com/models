@@ -50,6 +50,12 @@ HF_API_KEY = os.environ.get("HF_API_KEY")
 
 SYSTEM_LOGS_PATH = os.environ.get("SYSTEM_LOGS_PATH", "/var/log/cloud-init-output.log")
 
+DISABLE_PARALLEL_LOADING = json.loads(
+    os.environ.get("DISABLE_PARALLEL_LOADING", "false")
+)
+
+PARALLEL_LOADING_WORKERS = json.loads(os.environ.get("PARALLEL_LOADING_WORKERS", "8"))
+
 CONSTANTS_DICT = {
     "TASK": TASK,
     "MODEL": MODEL_ID,
@@ -67,6 +73,8 @@ CONSTANTS_DICT = {
             "USE_PRODUCTION_ANALYTICS_ENDPOINT": USE_PRODUCTION_ANALYTICS_ENDPOINT,
             "HF_API_KEY": HF_API_KEY,
             "SYSTEM_LOGS_PATH": SYSTEM_LOGS_PATH,
+            "DISABLE_PARALLEL_LOADING": DISABLE_PARALLEL_LOADING,
+            "PARALLEL_LOADING_WORKERS": PARALLEL_LOADING_WORKERS,
         }
         if DISABLE_ANALYTICS
         else {}
