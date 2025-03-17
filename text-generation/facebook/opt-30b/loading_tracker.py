@@ -87,17 +87,17 @@ class LoadingTracker:
         self.mark_download_as_done()
         self.mark_load_as_done()
 
-        self.log_percent_done_loaded()
-
-        # wait for each step to finish
-        download_model_thread.join()
-        monitor_process.join()
-
         elapsed_time_seconds = time.time() - start_time
 
         print(
             f"load_model_with_tracking took: {round(elapsed_time_seconds, 2)} seconds"
         )
+
+        self.log_percent_done_loaded()
+
+        # wait for each step to finish
+        download_model_thread.join()
+        monitor_process.join()
 
     def load_model(self, load_model_endpoint):
 
