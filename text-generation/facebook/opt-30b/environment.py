@@ -10,15 +10,15 @@ os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = os.environ.get(
     "DISABLE_PROGRESS_BARS", "0"
 )
 
-TASK = os.environ.get("TASK")
+TASK = os.environ.get("TASK", "text-generation")
 
-MODEL_ID = os.environ.get("MODEL_ID")
-
-# used for the model loading tracker
-FILES_SIZE_GB = float(os.environ.get("FILES_SIZE_GB", "12345678"))
+MODEL_ID = os.environ.get("MODEL_ID", "microsoft/phi-2")
 
 # used for the model loading tracker
-MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "12345678"))
+FILES_SIZE_GB = float(os.environ.get("FILES_SIZE_GB", "5.2"))
+
+# used for the model loading tracker
+MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "11"))
 
 # used for the model loading tracker
 LOG_LOADING = bool(os.environ.get("LOG_LOADING", "false"))
@@ -30,7 +30,7 @@ DEVICE = os.environ.get("DEVICE", "cuda" if torch.cuda.is_available() else "cpu"
 PORT = os.environ.get("PORT", 8002)
 
 # prevents calls to analytics when in the testing pipeline, or via instances api
-DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "false"))
+DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "true"))
 
 # Code is being run from gunicorn and not the debugger (flask will not start up)
 START_FLASK_DEBUG_SERVER = json.loads(
@@ -38,11 +38,11 @@ START_FLASK_DEBUG_SERVER = json.loads(
 )
 
 USE_PRODUCTION_ANALYTICS_ENDPOINT = json.loads(
-    os.environ.get("USE_PRODUCTION_ANALYTICS_ENDPOINT", "true")
+    os.environ.get("USE_PRODUCTION_ANALYTICS_ENDPOINT", "false")
 )
 
 # when a model, such as a text generation can produce output as it generates, this will enable such printing
-MODEL_LOGGING = json.loads(os.environ.get("MODEL_LOGGING", "false"))
+MODEL_LOGGING = json.loads(os.environ.get("MODEL_LOGGING", "true"))
 
 API_KEY = os.environ.get("KEY")
 
@@ -67,6 +67,12 @@ CONSTANTS_DICT = {
             "USE_PRODUCTION_ANALYTICS_ENDPOINT": USE_PRODUCTION_ANALYTICS_ENDPOINT,
             "HF_API_KEY": HF_API_KEY,
             "SYSTEM_LOGS_PATH": SYSTEM_LOGS_PATH,
+            "DISABLE_PARALLEL_LOADING": json.loads(
+                os.environ.get("DISABLE_PARALLEL_LOADING", "false")
+            ),
+            "PARALLEL_LOADING_WORKERS": json.loads(
+                os.environ.get("PARALLEL_LOADING_WORKERS", "8")
+            ),
         }
         if DISABLE_ANALYTICS
         else {}
