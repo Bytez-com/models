@@ -20,12 +20,17 @@ if __name__ == "__main__" or __name__ == "server":
         LOG_LOADING,
         DEVICE,
         SYSTEM_LOGS_PATH,
+        DISABLE_PARALLEL_LOADING,
     )
     from loading_tracker import LoadingTracker
     import multiprocessing
     import threading
 
-    multiprocessing.set_start_method("spawn", force=True)  # Set start method to 'spawn'
+    # serially loading does not work with the spawn method
+    if not DISABLE_PARALLEL_LOADING:
+        multiprocessing.set_start_method(
+            "spawn", force=True
+        )  # Set start method to 'spawn'
 
     # Construct class for tracking downloading and loading models
     LOADING_TRACKER = LoadingTracker(
