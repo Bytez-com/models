@@ -1,3 +1,2 @@
-pillow
 timm
-torchvision
+torchvision==0.21

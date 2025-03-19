@@ -31,7 +31,11 @@ async function main() {
   await higherOrderIterator(
     pathToIterateOver,
     async (index, modelPathObject, modelPathObjects) => {
-      const { filePath } = modelPathObject;
+      const { modelId, filePath } = modelPathObject;
+
+      // if (modelId !== "zuxyfox/baloon_detr_freeze") {
+      //   return;
+      // }
 
       const requirementsPath = `${filePath}/requirements.txt`;
 
@@ -103,6 +107,7 @@ async function main() {
   console.log(`Models updated: `, modelsUpdated);
   console.log(`Models not updated: `, modelsNotUpdated);
   console.log(`Models with no reqs: `, modelsWithNoRequirements);
+  console.log(`Models with no req files: `, modelsWithNoRequirementsFile);
 
   console.log(
     `The following packages were found across the repo that are not in the base ami: `,

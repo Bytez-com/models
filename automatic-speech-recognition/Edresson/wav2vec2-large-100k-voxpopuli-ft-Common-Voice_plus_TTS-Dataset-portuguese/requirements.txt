@@ -1,2 +1,2 @@
 librosa
-torchaudio
+torchaudio==2.6.0
