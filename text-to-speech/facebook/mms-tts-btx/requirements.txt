@@ -1,3 +1,2 @@
-## The following requirements were added by pip freeze:
 pyarrow-hotfix==0.6
 scipy==1.14.1

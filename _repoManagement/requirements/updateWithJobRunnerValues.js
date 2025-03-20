@@ -117,17 +117,21 @@ async function main() {
         }
       }
 
-      // const filteredReqs = {};
+      const filteredReqs = {};
 
-      // for (const [reqName, value] of Object.entries(requirementsNameMap)) {
-      //   if (reqName === "") {
-      //     continue;
-      //   }
+      for (const [reqName, value] of Object.entries(requirementsNameMap)) {
+        if (
+          reqName.includes(
+            "## The following requirements were added by pip freeze:"
+          )
+        ) {
+          continue;
+        }
 
-      //   filteredReqs[reqName] = value;
-      // }
+        filteredReqs[reqName] = value;
+      }
 
-      const updatedRequirements = Object.values(requirementsNameMap);
+      const updatedRequirements = Object.values(filteredReqs);
 
       // updatedRequirements.sort();
 
