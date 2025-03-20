@@ -38,6 +38,7 @@ async function higherOrderIterator(
       const filePath = `${resolvedPath}/${file}`;
 
       modelPathObjects.push({
+        task,
         modelId: `${org}/${model}`,
         githubLink: `https://github.com/Bytez-com/models/tree/main/${task}/${org}/${model}`,
         file,
