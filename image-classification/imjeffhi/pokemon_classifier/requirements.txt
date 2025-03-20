@@ -1,1 +1,1 @@
-pillow
+pillow==11.1.0

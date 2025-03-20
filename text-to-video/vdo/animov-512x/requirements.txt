@@ -1,4 +1,4 @@
 ## The following requirements were added by pip freeze:
-diffusers==0.29.2
+diffusers==0.30.2
 opencv-python==4.10.0.84
 pyarrow-hotfix==0.6

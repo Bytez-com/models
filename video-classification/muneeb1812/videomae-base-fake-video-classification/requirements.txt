@@ -1,4 +1,4 @@
 ## The following requirements were added by pip freeze:
-av==12.3.0
+av==13.0.0
 pyarrow-hotfix==0.6
-scipy==1.14.0
+scipy==1.14.1
