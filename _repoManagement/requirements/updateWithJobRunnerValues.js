@@ -5,6 +5,12 @@ const TASK_TO_CATEGORY_MAP = require("../../../constants/taskCategorization/maps
 const fs = require("fs").promises;
 const path = require("path");
 
+const SKIP_MAP = {
+  // "transformers==4.49.0": true,
+  // "pillow==11.1.0": true,
+  // "torchvision==0.21": true
+};
+
 const KEEP_LOCKED_MAP = {
   "librosa==0.10.2.post1": true
   // remove after testing
@@ -47,7 +53,7 @@ async function main() {
     async (index, modelPathObject, modelPathObjects) => {
       const { modelId, task, filePath } = modelPathObject;
 
-      // if (modelId !== "zuxyfox/baloon_detr_freeze") {
+      // if (modelId !== "Qwen/Qwen2-Audio-7B-Instruct") {
       //   return;
       // }
 
@@ -92,7 +98,7 @@ async function main() {
           await requirementsAsSet(templateRequirementsPath);
         // we want to add the missing reqs that are part of the template, and we want to not change templates that are already there
         // e.g. pillow is now missing, transformers is now missing, etc
-        for (const reqName of Object.keys(requirementsNameMap)) {
+        for (const reqName of Object.keys(templateRequirementsNameMap)) {
           const fullTemplateRequirement = templateRequirementsNameMap[reqName];
           const currentTemplateRequirement = requirementsNameMap[reqName];
 
@@ -106,10 +112,12 @@ async function main() {
 
           const isLocked = KEEP_LOCKED_MAP[currentTemplateRequirement];
 
-          if (isDifferent && !isLocked) {
-            // console.log(
-            //   `Changed: ${currentTemplateRequirement} to ${fullTemplateRequirement}`
-            // );
+          const shouldSkip = SKIP_MAP[fullTemplateRequirement];
+
+          if (isDifferent && !isLocked && !shouldSkip) {
+            console.log(
+              `Changed: ${currentTemplateRequirement} to ${fullTemplateRequirement}`
+            );
             requirementsNameMap[reqName] = fullTemplateRequirement;
           } else {
             const a = 2;
