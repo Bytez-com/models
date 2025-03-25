@@ -1,9 +1,10 @@
+const fs = require("fs").promises;
+const path = require("path");
+
 const { higherOrderIterator } = require("../higherOrderIterator");
 
 const TASK_TO_CATEGORY_MAP = require("../../../constants/taskCategorization/maps/taskToCategoryMap.json");
-
-const fs = require("fs").promises;
-const path = require("path");
+const { fileExists, requirementsAsSet } = require("./utils");
 
 const SKIP_MAP = {
   // "transformers==4.49.0": true,
@@ -34,12 +35,6 @@ const KEEP_LOCKED_MAP = {
   // "av==12.6.0": true,
   // av: true
 };
-
-const fileExists = path =>
-  fs
-    .stat(path)
-    .then(() => true)
-    .catch(() => false);
 
 async function main() {
   const pathToIterateOver = `${__dirname}/../../../modelsRepo`;
@@ -164,26 +159,6 @@ async function main() {
   console.log(`Models with no req files: `, modelsWithNoRequirementsFile);
 
   debugger;
-}
-
-async function requirementsAsSet(path) {
-  const buffer = await fs.readFile(path);
-
-  const string = buffer.toString().trim();
-
-  const nameToFullLineMap = {};
-
-  const array = string.split("\n").map(item => {
-    const [reqName] = item.split("==");
-
-    nameToFullLineMap[reqName] = item;
-
-    return reqName;
-  });
-
-  const set = new Set(array);
-
-  return [set, nameToFullLineMap, string];
 }
 
 if (require.main === module) {
