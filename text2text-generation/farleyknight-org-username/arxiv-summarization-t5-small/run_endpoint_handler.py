@@ -11,7 +11,7 @@ def run_endpoint_handler(request):
     stream = request.json.get("stream", False)
 
     if stream:
-        output_generator = model_run_generator(user_input=user_input, params=params)
+        output_generator = model_run_generator(user_input, params=params)
 
         return Response(
             output_generator(),

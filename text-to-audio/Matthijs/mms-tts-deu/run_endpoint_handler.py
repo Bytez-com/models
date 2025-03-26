@@ -20,7 +20,10 @@ def run_endpoint_handler(request):
         # depending on the model, the 2d output array may be the num_samples, num_channels or num_channels, num_samples
         # we don't know upfront, this is simple and easy to do
         wav_write(
-            buffer, rate=model_output["sampling_rate"], data=model_output["audio"]
+            buffer,
+            rate=model_output["sampling_rate"],
+            # notice how this is NOT transposed
+            data=model_output["audio"],
         )
     except:
         wav_write(

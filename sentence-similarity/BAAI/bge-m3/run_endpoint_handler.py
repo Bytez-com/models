@@ -1,7 +1,6 @@
-from flask import jsonify, Response
-from utils import model_run_generator
+from flask import jsonify
 from model import model_run
-import numpy as np
+from utils import convert_np
 
 
 def run_endpoint_handler(request):
@@ -12,8 +11,7 @@ def run_endpoint_handler(request):
     model_output = model_run(user_input, params)
 
     # Ensure the model output is serializable
-    if isinstance(model_output, np.ndarray):
-        model_output = model_output.tolist()
+    model_output = convert_np(model_output)
 
     # return response
     return jsonify({"output": model_output})

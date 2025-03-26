@@ -16,7 +16,22 @@ def run_endpoint_handler(request):
     buffer = io.BytesIO()
 
     # Write the WAV file to the buffer
-    wav_write(buffer, rate=model_output["sampling_rate"], data=model_output["audio"])
+    try:
+        # depending on the model, the 2d output array may be the num_samples, num_channels or num_channels, num_samples
+        # we don't know upfront, this is simple and easy to do
+        wav_write(
+            buffer,
+            rate=model_output["sampling_rate"],
+            # notice how this is NOT transposed
+            data=model_output["audio"],
+        )
+    except:
+        wav_write(
+            buffer,
+            rate=model_output["sampling_rate"],
+            # notice how this is transposed
+            data=model_output["audio"].T,
+        )
 
     # Get the WAV data from the buffer
     buffer.seek(0)
