@@ -45,6 +45,10 @@ class LoadingTracker:
         self.loading_is_done.value = True
         self.percent_progress_load.value = 100.0
 
+    def mark_as_done(self):
+        self.mark_download_as_done()
+        self.mark_load_as_done()
+
     @property
     def elapsed_time_in_seconds(self):
         if not self.loading_is_done.value:
@@ -83,9 +87,8 @@ class LoadingTracker:
         # we wait for model load chiefly
         load_model_thread.join()
 
-        # if the model is loaded, these must be true
-        self.mark_download_as_done()
-        self.mark_load_as_done()
+        # if the model is loaded, we are done loading
+        self.mark_as_done()
 
         elapsed_time_seconds = time.time() - start_time
 

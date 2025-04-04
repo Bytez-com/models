@@ -232,8 +232,6 @@ if __name__ == "__main__" or __name__ == "server":
             # NOTE threading is required to ensure we aren't blocking other requests
             def run_import():
                 from run_endpoint_handler import run_endpoint_handler  # noqa: F401
-                LOADING_TRACKER.mark_download_as_done()
-                LOADING_TRACKER.mark_load_as_done()
 
             thread = threading.Thread(target=run_import)
 
