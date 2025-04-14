@@ -24,6 +24,8 @@ if __name__ == "__main__" or __name__ == "server":
     from loading_tracker import LoadingTracker
     import multiprocessing
     import threading
+    from stats import SYSTEM_RAM_TRACKER
+
 
     multiprocessing.set_start_method("spawn", force=True)  # Set start method to 'spawn'
 
@@ -265,6 +267,21 @@ if __name__ == "__main__" or __name__ == "server":
                     },
                 },
             )
+        
+        @app.route("/stats/cpu/memory", methods=["GET"])
+        def job_runner_cpu_memory():
+            stats = SYSTEM_RAM_TRACKER.get_ram_stats()
+
+            peak_system_ram_usage_GB = stats["peak_system_ram_usage_GB"]
+            peak_model_ram_usage_GB = stats["peak_model_ram_usage_GB"]
+
+            # return response
+            return jsonify(
+                {
+                    "peak_system_ram_usage_GB": peak_system_ram_usage_GB,
+                    "peak_model_ram_usage_GB": peak_model_ram_usage_GB,
+                },
+            )
 
         # Start tracking loading progress
         loading_tracker_process = multiprocessing.Process(
@@ -273,6 +290,12 @@ if __name__ == "__main__" or __name__ == "server":
         )
 
         loading_tracker_process.start()
+
+
+        # NOTE this is job runner specific, find out how much memory is being used to run the program before loading the model
+        # NOTE this is only accurate because the flask app is run from gunicorn, if we wanted debug to be more accurate
+        # we'd want to do this + then loading the model AFTER the flask server starts in a thread
+        SYSTEM_RAM_TRACKER.set_baseline_utilization_GB()
 
         # start the flask server
         if START_FLASK_DEBUG_SERVER:
