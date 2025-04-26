@@ -60,11 +60,21 @@ HF_PARALLEL_DOWNLOADING_WORKERS = os.environ.get("HF_PARALLEL_DOWNLOADING_WORKER
 DISABLE_PARALLEL_LOADING = os.environ.get("DISABLE_PARALLEL_LOADING")
 PARALLEL_LOADING_WORKERS = os.environ.get("PARALLEL_LOADING_WORKERS")
 
+# these are fed to models during model loading, they are used to provide primarily "variant" and "torch_dtype" props, can be used to provide overrides
+MODEL_LOADING_KWARGS = json.loads(os.environ.get("MODEL_LOADING_KWARGS_JSON", "{}"))
+
+TORCH_DTYPE = MODEL_LOADING_KWARGS.get("torch_dtype")
+
+# if specified, we write the actual torch object to the property
+if TORCH_DTYPE:
+    MODEL_LOADING_KWARGS["torch_dtype"] = getattr(torch, TORCH_DTYPE)
+
 CONSTANTS_DICT = {
     "TASK": TASK,
     "MODEL": MODEL_ID,
     "DEVICE": DEVICE,
     "PORT": PORT,
+    "MODEL_LOADING_KWARGS": MODEL_LOADING_KWARGS,
     # For debugging containers we run, we disable analytics
     **(
         {
