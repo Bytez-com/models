@@ -1,6 +1,5 @@
 from diffusers import DiffusionPipeline
-from environment import MODEL_ID, DEVICE
-from transformers import CLIPTokenizer, CLIPImageProcessor
+from environment import MODEL_ID, DEVICE, MODEL_LOADING_KWARGS
 
 
 print("Loading model...")
@@ -12,11 +11,15 @@ DEFAULT_KWARGS = {
 
 try:
     # NOTE diffusers only supports device_map="balanced", .to() method can be used to specify a specific device
-    pipe = DiffusionPipeline.from_pretrained(MODEL_ID, **DEFAULT_KWARGS)
+    pipe = DiffusionPipeline.from_pretrained(
+        MODEL_ID, **DEFAULT_KWARGS, **MODEL_LOADING_KWARGS
+    )
 except Exception:
     # NOTE if loading with the device map failed, try loading on a specific device
     del DEFAULT_KWARGS["device_map"]
-    pipe = DiffusionPipeline.from_pretrained(MODEL_ID, **DEFAULT_KWARGS).to(DEVICE)
+    pipe = DiffusionPipeline.from_pretrained(
+        MODEL_ID, **DEFAULT_KWARGS, **MODEL_LOADING_KWARGS
+    ).to(DEVICE)
 
 
 print("Model loaded")
