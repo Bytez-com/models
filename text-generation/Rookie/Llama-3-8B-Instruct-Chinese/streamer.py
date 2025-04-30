@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer
 from transformers.generation.streamers import BaseStreamer
 from queue import Queue
+from environment import MODEL_LOGGING
 
 
 class SingleTokenStreamer(BaseStreamer):
@@ -40,6 +41,9 @@ class SingleTokenStreamer(BaseStreamer):
         # detect if a space should be included, we use the previous value and if there's a space after it's length, then the current token gets text prepended
 
         text: str = self.tokenizer.decode(self.token_buffer, **self.decode_kwargs)
+
+        if MODEL_LOGGING:
+            print(text)
 
         # we hit a nonsense piece of text, so we wait for the next token
         if "�" in text:
