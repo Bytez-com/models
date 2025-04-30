@@ -1,4 +1,3 @@
-import ctypes
 import psutil
 import time
 from dataclasses import dataclass
@@ -7,8 +6,6 @@ import multiprocessing
 import pynvml
 from requests import request
 import traceback
-
-EXCEPTION_MAX_STRING_SIZE = 10_000
 
 
 @dataclass
@@ -36,10 +33,6 @@ class LoadingTracker:
 
         self.downloading_is_done = multiprocessing.Value("b", False)
         self.loading_is_done = multiprocessing.Value("b", False)
-        self.loading_failed = multiprocessing.Value("b", False)
-        self.loading_failed_exception = multiprocessing.Array(
-            ctypes.c_char, EXCEPTION_MAX_STRING_SIZE
-        )
 
         self.start_time = multiprocessing.Value("d", 0.0)
         self.end_time = multiprocessing.Value("d", 0.0)
@@ -51,21 +44,6 @@ class LoadingTracker:
     def mark_load_as_done(self):
         self.loading_is_done.value = True
         self.percent_progress_load.value = 100.0
-
-    def mark_as_failed(self):
-        self.loading_is_done.value = True
-        self.loading_failed.value = True
-
-    def mark_as_done(self, failed=False, exception=""):
-        if failed:
-            self.mark_as_failed()
-
-            sliced_exception = exception[:EXCEPTION_MAX_STRING_SIZE]
-            self.loading_failed_exception.value = sliced_exception.encode("utf-8")
-        else:
-            self.mark_download_as_done()
-            self.mark_load_as_done()
-            self.log_percent_done_loaded()
 
     @property
     def elapsed_time_in_seconds(self):
@@ -105,36 +83,34 @@ class LoadingTracker:
         # we wait for model load chiefly
         load_model_thread.join()
 
+        # if the model is loaded, these must be true
+        self.mark_download_as_done()
+        self.mark_load_as_done()
+
         elapsed_time_seconds = time.time() - start_time
 
         print(
             f"load_model_with_tracking took: {round(elapsed_time_seconds, 2)} seconds"
         )
 
+        self.log_percent_done_loaded()
+
         # wait for each step to finish
         download_model_thread.join()
         monitor_process.join()
 
     def load_model(self, load_model_endpoint):
+
         def load_model_via_http():
             max_retries = 10
-
             for i in range(max_retries):
                 try:
-                    result = request(method="GET", url=load_model_endpoint).json()
-                    success = result["success"]
-                    exception = result["exception"]
-                    self.mark_as_done(failed=not success, exception=exception)
+                    request(method="GET", url=load_model_endpoint)
                     return
-
-                except Exception as exception:
+                except Exception:
                     if i >= max_retries - 1:
                         traceback.print_exc()
                     time.sleep(1)
-            self.mark_as_done(
-                failed=True,
-                exception=f"load_model_via_http timeout out after {max_retries}",
-            )
 
         load_model_thread = threading.Thread(target=load_model_via_http)
 
@@ -177,7 +153,7 @@ class LoadingTracker:
         for _ in range(duration // interval_in_seconds):
 
             # consider downloading finished if we have a significantly strong signal indicating loading is in progress
-            if self.percent_progress_load.value > 2 or self.loading_failed.value:
+            if self.percent_progress_load.value > 2:
                 self.mark_download_as_done()
                 break
 
@@ -225,7 +201,7 @@ class LoadingTracker:
         highest_used_memory_in_GB = 0
 
         while True:
-            if self.loading_is_done.value or self.loading_failed.value:
+            if self.loading_is_done.value:
                 break
 
             total_memory, used_memory = self.get_cuda_mem_info()
@@ -265,7 +241,7 @@ class LoadingTracker:
         highest_used_memory_in_GB = 0
 
         while True:
-            if self.loading_is_done.value or self.loading_failed.value:
+            if self.loading_is_done.value:
                 break
             # Get current memory usage
             current_mem_info = psutil.virtual_memory()
