@@ -1,35 +1,21 @@
+from collections import OrderedDict
 from transformers import pipeline
-from environment import MODEL_ID, TASK, DEVICE
+from environment import MODEL_ID, TASK, DEVICE, MODEL_LOADING_KWARGS
+from validate_pipe import validate_pipe
 
-print("Loading model...")
 
 # construct as a set to dedupe, then turn into list
-DEVICES = list(
-    {
-        "auto",
-        # if the device was specified, i.e. cuda for instances, then if auto fails, this will run
-        DEVICE,
-        # always fallback to cpu worst case scenario
-        "cpu",
-    }
-)
+FALL_BACK_DEVICES = [
+    "auto",
+    # if the device was specified, i.e. cuda for instances, then if auto fails, this will run
+    DEVICE,
+    # always fallback to cpu worst case scenario
+    "cpu",
+]
 
-
-# wrapper for loading model on a specific device
-def _try_loading(pipeline_call: callable):
-    collected_exception = None
-
-    for device in DEVICES:
-        try:
-            pipe = pipeline_call(device)
-
-            print("Loaded model on device: ", device)
-
-            return pipe
-        except Exception as exception:
-            collected_exception = exception
-
-    raise collected_exception
+# Use OrderedDict to maintain order while deduplicating
+DEVICES = list(OrderedDict.fromkeys(FALL_BACK_DEVICES))
+DEVICES_NO_AUTO = DEVICES[1:]
 
 
 DEFAULT_KWARGS = {
@@ -39,40 +25,45 @@ DEFAULT_KWARGS = {
 }
 
 
-# attempt loading the model with the device_map
-def try_device_map():
-    def load_model_with_device_map(device):
-        print("Attempting to load model via 'device_map' with device: ", device)
-        return pipeline(**DEFAULT_KWARGS, device_map=device)
+def try_loading():
+    # we'll try loading on "device_map" first, then "device". This is to ensure a model at least runs on the CPU if
+    # it fails to load on cuda on an instance
+    loading_methods = [
+        ["device_map", DEVICES],
+        # NOTE device is special, it doesn't support 'auto'
+        ["device", DEVICES_NO_AUTO],
+    ]
 
-    pipe = _try_loading(pipeline_call=load_model_with_device_map)
-    return pipe
+    collected_exception = None
 
+    for loading_method, devices in loading_methods:
+        for device in devices:
+            try:
+                print(
+                    f"Attempting to load model via '{loading_method}' with device: ",
+                    device,
+                )
 
-# attempt loading the model with a specific device
-def try_device():
-    def load_model_with_device(device):
-        print("Attempting to load model via 'device' with device: ", device)
-        return pipeline(
-            **DEFAULT_KWARGS,
-            device=device,
-        )
+                kwargs = {**DEFAULT_KWARGS, **MODEL_LOADING_KWARGS}
 
-    pipe = _try_loading(pipeline_call=load_model_with_device)
-    return pipe
+                # set the kwargs to specifically have the loading method and the device
+                kwargs.setdefault(loading_method, device)
 
+                pipe = pipeline(**kwargs)
 
-# try the device_map first, then try the actual device
-def try_loading(**kwargs):
-    try:
-        pipe = try_device_map(**kwargs)
-        return pipe
-    except Exception:
-        pipe = try_device(**kwargs)
-        return pipe
+                print(f"Loaded model via '{loading_method}' on device: ", device)
+
+                return pipe
+            except Exception as exception:
+                collected_exception = exception
+
+    raise collected_exception
 
 
 pipe = try_loading()
+
+# this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
+validate_pipe(pipe)
 
 print("Model loaded")
 

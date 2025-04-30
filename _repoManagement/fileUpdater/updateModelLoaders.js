@@ -26,6 +26,8 @@ const TASK_PATHS = {
 
 const DEFAULT_MODEL_LOADER_PATH = `${__dirname}/../../../templates/default/${NAME_OF_FILE_TO_UPDATE}`;
 
+const FAILED_TASKS = {};
+
 async function main() {
   const updatedModels = [];
   const newFileModels = [];
@@ -58,7 +60,7 @@ async function main() {
         task
       );
 
-      console.log("New file is:\n\n", newFileContents);
+      // console.log("New file is:\n\n", newFileContents);
 
       console.log(
         `On model: ${modelId} (${index + 1}/${modelPathObjects.length})`
@@ -67,6 +69,7 @@ async function main() {
       const fileToUpdatePath = `${filePath}/${NAME_OF_FILE_TO_UPDATE}`;
 
       // overwrite the target file with the new file contents
+      const githubLink = `https://github.com/Bytez-com/models/blob/main/${task}/${modelId}/model_loader.py`;
       try {
         const exists = await fileExists(fileToUpdatePath);
 
@@ -82,20 +85,22 @@ async function main() {
         const buffer = await fs.readFile(fileToUpdatePath);
         const oldFileContents = buffer.toString();
 
-        if (oldFileContents !== newFileContents) {
-          // now we take the args from the old file and put them into the new one
-          const oldArgs = pythonArgsToJs(oldFileContents);
-          const newFileContentsWithArgs = updatePythonFileWithArgs(
-            newFileContents,
-            oldArgs
-          );
+        // now we take the args from the old file and put them into the new one
+        const oldArgs = pythonArgsToJs(oldFileContents);
+        const newFileContentsWithArgs = updatePythonFileWithArgs(
+          newFileContents,
+          oldArgs
+        );
 
-          if (newFileContents !== newFileContentsWithArgs) {
-            const a = 2;
-          } else {
-            const a = 2;
-          }
+        if (newFileContents !== newFileContentsWithArgs) {
+          const a = 2;
+        }
 
+        if (
+          oldFileContents !== newFileContents &&
+          // if we've already overwritten the file on a previous run
+          oldFileContents !== newFileContentsWithArgs
+        ) {
           await fs.writeFile(fileToUpdatePath, newFileContentsWithArgs);
 
           updatedModels.push(modelPathObject);
@@ -105,6 +110,7 @@ async function main() {
           notUpdatedModels.push(modelPathObject);
         }
       } catch (error) {
+        FAILED_TASKS[task] = true;
         failedModels.push(modelPathObject);
       }
     }
@@ -126,6 +132,11 @@ async function main() {
   for (const [task, models] of Object.entries(TASKS_UPDATED_MAP)) {
     console.log(`Task: ${task} updated for ${models.length} models`);
   }
+
+  await fs.writeFile(
+    `${__dirname}/modelsThatNeedToBeRerun.json`,
+    JSON.stringify(failedModels, null, 2)
+  );
 
   debugger;
 }

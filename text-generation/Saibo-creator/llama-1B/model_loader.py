@@ -1,9 +1,7 @@
 from collections import OrderedDict
 from transformers import pipeline
-from environment import MODEL_ID, TASK, DEVICE
-
-
-print("Loading model...")
+from environment import MODEL_ID, TASK, DEVICE, MODEL_LOADING_KWARGS
+from validate_pipe import validate_pipe
 
 
 # construct as a set to dedupe, then turn into list
@@ -17,6 +15,7 @@ FALL_BACK_DEVICES = [
 
 # Use OrderedDict to maintain order while deduplicating
 DEVICES = list(OrderedDict.fromkeys(FALL_BACK_DEVICES))
+DEVICES_NO_AUTO = DEVICES[1:]
 
 
 DEFAULT_KWARGS = {
@@ -30,21 +29,22 @@ def try_loading():
     # we'll try loading on "device_map" first, then "device". This is to ensure a model at least runs on the CPU if
     # it fails to load on cuda on an instance
     loading_methods = [
-        "device_map",
-        "device",
+        ["device_map", DEVICES],
+        # NOTE device is special, it doesn't support 'auto'
+        ["device", DEVICES_NO_AUTO],
     ]
 
     collected_exception = None
 
-    for loading_method in loading_methods:
-        for device in DEVICES:
+    for loading_method, devices in loading_methods:
+        for device in devices:
             try:
                 print(
                     f"Attempting to load model via '{loading_method}' with device: ",
                     device,
                 )
 
-                kwargs = {**DEFAULT_KWARGS}
+                kwargs = {**DEFAULT_KWARGS, **MODEL_LOADING_KWARGS}
 
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)
@@ -62,6 +62,8 @@ def try_loading():
 
 pipe = try_loading()
 
+# this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
+validate_pipe(pipe)
 
 print("Model loaded")
 

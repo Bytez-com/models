@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import traceback
 from transformers import PretrainedConfig
-from environment import TASK, MODEL_ID, DEVICE
+from environment import TASK, MODEL_ID, DEVICE, MODEL_LOADING_KWARGS
 from architecture_registry_module.classes.model_entity import (
     ModelEntity,
 )
@@ -122,7 +122,7 @@ class Registry:
                         device,
                     )
 
-                    kwargs = {}
+                    kwargs = {**MODEL_LOADING_KWARGS}
 
                     # set the kwargs to specifically have the loading method and the device
                     kwargs.setdefault(loading_method, device)

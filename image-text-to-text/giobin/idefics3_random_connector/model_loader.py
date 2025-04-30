@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import traceback
 from transformers import PretrainedConfig
-from environment import TASK, MODEL_ID, DEVICE
+from environment import TASK, MODEL_ID, DEVICE, MODEL_LOADING_KWARGS
 from architecture_registry_module.classes.model_entity import (
     ModelEntity,
 )
@@ -23,11 +23,6 @@ FALL_BACK_DEVICES = [
     # always fallback to cpu worst case scenario
     "cpu",
 ]
-
-DEFAULT_KWARGS = {
-    ### params ###
-    "trust_remote_code": False,
-}
 
 # Use OrderedDict to maintain order while deduplicating
 DEVICES = list(OrderedDict.fromkeys(FALL_BACK_DEVICES))
@@ -127,7 +122,7 @@ class Registry:
                         device,
                     )
 
-                    kwargs = {**DEFAULT_KWARGS}
+                    kwargs = {**MODEL_LOADING_KWARGS}
 
                     # set the kwargs to specifically have the loading method and the device
                     kwargs.setdefault(loading_method, device)

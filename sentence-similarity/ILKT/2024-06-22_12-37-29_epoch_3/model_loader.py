@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from sentence_transformers import SentenceTransformer
-from environment import MODEL_ID, DEVICE
+from environment import MODEL_ID, DEVICE, MODEL_LOADING_KWARGS
 
 print("Loading model...")
 
@@ -22,7 +22,7 @@ DEVICES_NO_AUTO = DEVICES[1:]
 DEFAULT_KWARGS = {
     ### params ###
     "model_name_or_path": MODEL_ID,
-    "trust_remote_code": True
+    "trust_remote_code": True,
 }
 
 
@@ -46,7 +46,7 @@ def try_loading():
                     device,
                 )
 
-                kwargs = {**DEFAULT_KWARGS}
+                kwargs = {**DEFAULT_KWARGS, **MODEL_LOADING_KWARGS}
 
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)

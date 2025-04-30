@@ -1,8 +1,7 @@
 from collections import OrderedDict
-from transformers import pipeline, AutoTokenizer
-from environment import MODEL_ID, TASK, DEVICE
-
-print("Loading model...")
+from transformers import pipeline
+from environment import MODEL_ID, TASK, DEVICE, MODEL_LOADING_KWARGS
+from validate_pipe import validate_pipe
 
 
 # construct as a set to dedupe, then turn into list
@@ -45,7 +44,7 @@ def try_loading():
                     device,
                 )
 
-                kwargs = {**DEFAULT_KWARGS}
+                kwargs = {**DEFAULT_KWARGS, **MODEL_LOADING_KWARGS}
 
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)
@@ -63,14 +62,8 @@ def try_loading():
 
 pipe = try_loading()
 
-# Load the tokenizer if it's not present, pipeline() doesn't always get this right
-if not pipe.tokenizer:
-    try:
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-        pipe.tokenizer = tokenizer
-    except Exception:
-        print("Could not load tokenizer")
-
+# this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
+validate_pipe(pipe)
 
 print("Model loaded")
 

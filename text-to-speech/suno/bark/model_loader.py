@@ -1,8 +1,7 @@
 from collections import OrderedDict
 from transformers import pipeline
-from environment import MODEL_ID, TASK, DEVICE
-
-print("Loading model...")
+from environment import MODEL_ID, TASK, DEVICE, MODEL_LOADING_KWARGS
+from validate_pipe import validate_pipe
 
 
 # construct as a set to dedupe, then turn into list
@@ -45,7 +44,7 @@ def try_loading():
                     device,
                 )
 
-                kwargs = {**DEFAULT_KWARGS}
+                kwargs = {**DEFAULT_KWARGS, **MODEL_LOADING_KWARGS}
 
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)
@@ -63,6 +62,8 @@ def try_loading():
 
 pipe = try_loading()
 
+# this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
+validate_pipe(pipe)
 
 print("Model loaded")
 

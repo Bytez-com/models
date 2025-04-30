@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from transformers import pipeline
-from environment import MODEL_ID, TASK, DEVICE
+from environment import MODEL_ID, TASK, DEVICE, MODEL_LOADING_KWARGS
 from validate_pipe import validate_pipe
 
 
@@ -22,7 +22,7 @@ DEFAULT_KWARGS = {
     ### params ###
     "task": TASK,
     "model": MODEL_ID,
-    "trust_remote_code": True
+    "trust_remote_code": True,
 }
 
 
@@ -45,7 +45,7 @@ def try_loading():
                     device,
                 )
 
-                kwargs = {**DEFAULT_KWARGS}
+                kwargs = {**DEFAULT_KWARGS, **MODEL_LOADING_KWARGS}
 
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)

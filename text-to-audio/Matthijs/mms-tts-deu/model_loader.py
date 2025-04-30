@@ -1,9 +1,7 @@
 from collections import OrderedDict
 from transformers import pipeline
-from environment import MODEL_ID, TASK, DEVICE
+from environment import MODEL_ID, TASK, DEVICE, MODEL_LOADING_KWARGS
 from validate_pipe import validate_pipe
-
-print("Loading model...")
 
 
 # construct as a set to dedupe, then turn into list
@@ -31,7 +29,7 @@ def try_loading():
     # we'll try loading on "device_map" first, then "device". This is to ensure a model at least runs on the CPU if
     # it fails to load on cuda on an instance
     loading_methods = [
-        ["device_map", []],
+        ["device_map", DEVICES],
         # NOTE device is special, it doesn't support 'auto'
         ["device", DEVICES_NO_AUTO],
     ]
@@ -46,7 +44,7 @@ def try_loading():
                     device,
                 )
 
-                kwargs = {**DEFAULT_KWARGS}
+                kwargs = {**DEFAULT_KWARGS, **MODEL_LOADING_KWARGS}
 
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)
