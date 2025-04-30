@@ -1,5 +1,6 @@
 # NOTE this structuring is required because parallel model loading requires the start method to be set to spawn
 if __name__ == "__main__" or __name__ == "server":
+    from time import sleep
     from datetime import datetime
     from copy import deepcopy
     from requests import request as httpRequest
@@ -24,6 +25,7 @@ if __name__ == "__main__" or __name__ == "server":
     from loading_tracker import LoadingTracker
     import multiprocessing
     import threading
+    from stats import SYSTEM_RAM_TRACKER
 
     multiprocessing.set_start_method("spawn", force=True)  # Set start method to 'spawn'
 
@@ -190,11 +192,13 @@ if __name__ == "__main__" or __name__ == "server":
             stack_trace = format_exc()
             app.logger.error(stack_trace)
 
-            try:
-                request_data = request.get_json()
-            except Exception as exception:
-                app.logger.error(exception)
-                request_data = {}
+            request_data = {}
+
+            if request.method == "POST":
+                try:
+                    request_data = request.get_json()
+                except Exception as exception:
+                    app.logger.error(exception)
 
             analytics(
                 event_name="Model Error",
@@ -211,14 +215,54 @@ if __name__ == "__main__" or __name__ == "server":
                 422,
             )
 
+        @app.route("/", defaults={"path": ""})
         @app.route("/health", methods=["GET"])
         async def health_check():
-            return "", 200
+            model_is_loaded = bool(LOADING_TRACKER.loading_is_done.value)
 
-        @app.route("/", defaults={"path": ""})
-        @app.route("/<path:path>")
-        def catch_all():
-            return "", 204
+            model_failed_to_load = bool(LOADING_TRACKER.loading_failed.value)
+            model_failed_to_load_exception = (
+                LOADING_TRACKER.loading_failed_exception.value.decode("utf-8")
+            )
+
+            # NOTE if the model fails to load, the server crashes
+
+            if model_failed_to_load:
+                return (
+                    f"Fatal, model failed to load with an exception:\n\n{model_failed_to_load_exception}",
+                    503,
+                )
+
+            if model_is_loaded:
+                return "ready", 200
+
+            else:
+                # NOTE this is the max timeout for our load balancer's healthcheck, which gives us more leeway with determining model readiness
+                sleep(2)
+                return "Model is not ready yet", 503
+
+        @app.route("/load_model", methods=["GET"])
+        def load_model():
+            result = {"success": True, "exception": ""}
+
+            def run_import():
+                try:
+                    from run_endpoint_handler import run_endpoint_handler  # noqa: F401
+                except Exception:
+                    exception = format_exc()
+                    print("Model failed to load with an exception:\n\n", exception)
+
+                    result["success"] = False
+                    result["exception"] = exception
+
+            thread = threading.Thread(target=run_import)
+
+            thread.start()
+            thread.join()
+
+            status_code = 200 if result["success"] else 503
+
+            return jsonify(result), status_code
 
         @app.route("/run", methods=["POST"])
         @track_analytics(event_name="Model Inference")
@@ -226,19 +270,6 @@ if __name__ == "__main__" or __name__ == "server":
             from run_endpoint_handler import run_endpoint_handler
 
             return run_endpoint_handler(request)
-
-        @app.route("/load_model", methods=["GET"])
-        def load_model():
-            # NOTE threading is required to ensure we aren't blocking other requests
-            def run_import():
-                from run_endpoint_handler import run_endpoint_handler  # noqa: F401
-
-            thread = threading.Thread(target=run_import)
-
-            thread.start()
-            thread.join()
-
-            return jsonify({"success": True})
 
         @app.route("/status", methods=["GET"])
         async def load_status():
@@ -248,7 +279,6 @@ if __name__ == "__main__" or __name__ == "server":
             # return response
             return jsonify(
                 {
-                    "logs_path": SYSTEM_LOGS_PATH,
                     "progress_percent_download": progress_download,
                     "progress_percent_load": progress_load,
                     "download_done": bool(LOADING_TRACKER.downloading_is_done),
@@ -266,6 +296,31 @@ if __name__ == "__main__" or __name__ == "server":
                 },
             )
 
+        @app.route("/logs", methods=["GET"])
+        async def logs():
+            try:
+                with open(SYSTEM_LOGS_PATH, encoding="utf-8", errors="replace") as file:
+                    logs = file.read()
+                    return {"logs": logs, "logs_path": SYSTEM_LOGS_PATH}
+            except Exception:
+                exception = format_exc()
+                return {"exception": exception}, 500
+
+        @app.route("/stats/cpu/memory", methods=["GET"])
+        def job_runner_cpu_memory():
+            stats = SYSTEM_RAM_TRACKER.get_ram_stats()
+
+            peak_system_ram_usage_GB = stats["peak_system_ram_usage_GB"]
+            peak_model_ram_usage_GB = stats["peak_model_ram_usage_GB"]
+
+            # return response
+            return jsonify(
+                {
+                    "peak_system_ram_usage_GB": peak_system_ram_usage_GB,
+                    "peak_model_ram_usage_GB": peak_model_ram_usage_GB,
+                },
+            )
+
         # Start tracking loading progress
         loading_tracker_process = multiprocessing.Process(
             target=LOADING_TRACKER.load_model_with_tracking,
@@ -273,6 +328,11 @@ if __name__ == "__main__" or __name__ == "server":
         )
 
         loading_tracker_process.start()
+
+        # NOTE this is job runner specific, find out how much memory is being used to run the program before loading the model
+        # NOTE this is only accurate because the flask app is run from gunicorn, if we wanted debug to be more accurate
+        # we'd want to do this + then loading the model AFTER the flask server starts in a thread
+        SYSTEM_RAM_TRACKER.set_baseline_utilization_GB()
 
         # start the flask server
         if START_FLASK_DEBUG_SERVER:
