@@ -3,7 +3,7 @@ const { higherOrderIterator } = require("../higherOrderIterator");
 const fs = require("fs").promises;
 
 async function main() {
-  const nameOfFileToUpdate = "loading_tracker.py";
+  const nameOfFileToUpdate = "environment.py";
 
   const newFilePath = `${__dirname}/../../../templates/default/${nameOfFileToUpdate}`;
 
