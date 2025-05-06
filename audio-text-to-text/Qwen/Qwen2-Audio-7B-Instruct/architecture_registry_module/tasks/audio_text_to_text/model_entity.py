@@ -84,19 +84,25 @@ class AudioTextToTextModelEntity(ModelEntity):
 
             new_content_items = []
 
-            for content_item in message["content"]:
-                new_content_item = content_item
+            content = message["content"]
 
-                type = content_item["type"]
+            if isinstance(content, str):
+                new_content_items.append({"type": "text", "text": content})
 
-                if type == "audio":
-                    audio_url = content_item["url"]
+            else:
+                for content_item in message["content"]:
+                    new_content_item = content_item
 
-                    new_content_item = {"type": "audio", "audio_url": audio_url}
+                    type = content_item["type"]
 
-                    audios.append(audio_url)
+                    if type == "audio":
+                        audio_url = content_item["url"]
 
-                new_content_items.append(new_content_item)
+                        new_content_item = {"type": "audio", "audio_url": audio_url}
+
+                        audios.append(audio_url)
+
+                    new_content_items.append(new_content_item)
 
             new_message = {**message, "content": new_content_items}
 
