@@ -283,6 +283,10 @@ if __name__ == "__main__" or __name__ == "server":
                     "progress_percent_load": progress_load,
                     "download_done": bool(LOADING_TRACKER.downloading_is_done),
                     "done": bool(LOADING_TRACKER.loading_is_done.value),
+                    "model_failed_to_load": bool(LOADING_TRACKER.loading_failed.value),
+                    "model_failed_to_load_exception": (
+                        LOADING_TRACKER.loading_failed_exception.value.decode("utf-8")
+                    ),
                     "memory_stats": {
                         "device": DEVICE,
                         "MODEL_SIZE_GB": round(MODEL_SIZE_GB, 2),
