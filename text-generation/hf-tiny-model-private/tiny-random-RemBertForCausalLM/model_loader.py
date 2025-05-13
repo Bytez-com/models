@@ -20,7 +20,8 @@ DEVICES_NO_AUTO = DEVICES[1:]
 
 DEFAULT_KWARGS = {
     ### params ###
-,
+    "task": TASK,
+    "model": MODEL_ID,
 }
 
 
