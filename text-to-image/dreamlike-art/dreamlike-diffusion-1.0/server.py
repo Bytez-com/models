@@ -27,6 +27,8 @@ if __name__ == "__main__" or __name__ == "server":
     import threading
     from stats import SYSTEM_RAM_TRACKER
 
+    inference_lock = threading.Lock()
+
     multiprocessing.set_start_method("spawn", force=True)  # Set start method to 'spawn'
 
     # Construct class for tracking downloading and loading models
@@ -269,7 +271,10 @@ if __name__ == "__main__" or __name__ == "server":
         def run():
             from run_endpoint_handler import run_endpoint_handler
 
-            return run_endpoint_handler(request)
+            # NOTE important, pipeline is not thread safe, you do not want concurrent requests.
+            # futhermore, oftentimes even though it will perform inference, it severely degrades performance. Throughput is higher in serial.
+            with inference_lock:
+                return run_endpoint_handler(request)
 
         @app.route("/status", methods=["GET"])
         async def load_status():
