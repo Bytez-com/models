@@ -1,1 +1,2 @@
-pyarrow-hotfix==0.6
+einops==0.8.1
+opt-einsum==3.4.0
