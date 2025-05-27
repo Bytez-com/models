@@ -9,20 +9,16 @@ REPO = "models"
 BRANCH = "main"
 TASK = os.environ.get("TASK")
 MODEL_ID = os.environ.get("MODEL_ID")
+USE_JSDELIVR = os.environ.get("USE_JSDELIVR", "false").lower() == "true"
 
 
 def make_request(url):
     response = requests.get(url)
-
-    # Check if the request was successful
     if not response.ok:
         raise Exception("Request failed")
-
     return response
 
 
-# NOTE github doesn't support a way to directly get a dir's SHA without iterating through the entire contents of a directory
-# so we opt for doing the recursion ourselves. This is ultimately less code
 def get_model_files():
     files = _get_model_dir_tree(path=f"{TASK}/{MODEL_ID}")
     return files
@@ -31,9 +27,7 @@ def get_model_files():
 def _get_model_dir_tree(path):
     url = f"https://api.github.com/repos/{OWNER}/{REPO}/contents/{path}"
     response = make_request(url=url)
-
     items = response.json()
-
     files = []
 
     for item in items:
@@ -41,11 +35,14 @@ def _get_model_dir_tree(path):
             files.append(item)
         elif item["type"] == "dir":
             sub_path = item["path"]
-            # Recurse into the directory
             sub_files = _get_model_dir_tree(sub_path)
             files.extend(sub_files)
 
     return files
+
+
+def get_jsdelivr_url(path):
+    return f"https://cdn.jsdelivr.net/gh/{OWNER}/{REPO}@{BRANCH}/{path}"
 
 
 def download_file(item):
@@ -56,18 +53,17 @@ def download_file(item):
 
     path = item.get("path")
 
-    print(f"Downloading: {path}")
-
-    # this allows us to keep the path relative to our working directory, i.e. removes the task and model hierarchy from the path
     adjusted_path = path.split(f"{TASK}/{MODEL_ID}/")[1]
-
     file_path = f"{WORKING_DIR}/{adjusted_path}"
-    # Create the directory structure if it doesn't exist
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-    file_content = requests.get(item["download_url"]).content
+    # Use jsDelivr or GitHub download URL
+    url = get_jsdelivr_url(path) if USE_JSDELIVR else item["download_url"]
 
-    # Save the file locally
+    print(f"Downloading: {url}")
+
+    file_content = requests.get(url).content
+
     with open(file_path, "wb") as file:
         file.write(file_content)
 
@@ -76,28 +72,16 @@ def download_files():
     model_files = get_model_files()
 
     with ThreadPoolExecutor() as executor:
-        # Submit the download tasks to the executor
         futures = [executor.submit(download_file, item) for item in model_files]
 
-        # Optional: wait for all downloads to complete
         for future in as_completed(futures):
             try:
-                future.result()  # To raise any exceptions encountered during the execution
+                future.result()
             except Exception as exc:
                 print(f"An error occurred: {exc}")
 
 
-def get_sha_for_dir(tree, path):
-    for item in tree:
-        if item["path"] == path:
-            return item["sha"]
-
-    raise Exception(f"Could not find: {path}")
-
-
 if __name__ == "__main__":
     print("Downloading model repo...")
-
     download_files()
-
-    print("Done dowloading model repo")
+    print("Done downloading model repo")
