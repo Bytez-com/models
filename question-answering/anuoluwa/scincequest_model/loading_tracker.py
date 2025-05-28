@@ -20,6 +20,8 @@ class LoadingTracker:
 
     files_size_in_GB: float = 1
     model_size_in_GB: float = 1
+    prev_dl_value: float = None
+    prev_load_value: float = None
 
     logger: callable = print
     logging_enabled: bool = False
@@ -313,11 +315,21 @@ class LoadingTracker:
         return bounded_value
 
     def log_percent_done_downloaded(self):
-        if self.logging_enabled:
+        if (
+            self.logging_enabled
+            and self.prev_dl_value != self.percent_progress_download.value
+        ):
+            self.prev_dl_value = self.percent_progress_download.value
+
             self.logger(f"Percent downloaded: {self.percent_progress_download.value}%")
 
     def log_percent_done_loaded(self):
-        if self.logging_enabled:
+        if (
+            self.logging_enabled
+            and self.prev_load_value != self.percent_progress_load.value
+        ):
+            self.prev_load_value = self.percent_progress_load.value
+
             self.logger(
                 f"Percent loaded into memory: {self.percent_progress_load.value}%"
             )
