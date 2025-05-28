@@ -3,24 +3,27 @@ import torch
 import numpy as np
 from dataclasses import dataclass
 from diffusers import LTXConditionPipeline, LTXLatentUpsamplePipeline
-from environment import MODEL_ID, MODEL_LOADING_KWARGS
+from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
+from diffusers.utils import export_to_video
+from environment import MODEL_ID, DEVICE, MODEL_LOADING_KWARGS
 
 _pipe = LTXConditionPipeline.from_pretrained(
-    #
-    MODEL_ID,
-    torch_dtype=torch.bfloat16,
-    device_map="auto",
-    **MODEL_LOADING_KWARGS,
+    MODEL_ID, torch_dtype=torch.bfloat16, device_map="balanced", **MODEL_LOADING_KWARGS
 )
 
 pipe_upsample = LTXLatentUpsamplePipeline.from_pretrained(
     "Lightricks/ltxv-spatial-upscaler-0.9.7",
     vae=_pipe.vae,
     torch_dtype=torch.bfloat16,
-    device_map="auto",
+    device_map="balanced",
     **MODEL_LOADING_KWARGS,
 )
 
+
+device = "cuda" if DEVICE == "cuda" else "cpu"
+
+_pipe.to(device)
+pipe_upsample.to(device)
 _pipe.vae.enable_tiling()
 
 
