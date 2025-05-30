@@ -64,6 +64,10 @@ class LlavaNextVideoForConditionalGeneration(VideoTextToTextModelEntity):
 
             videos[index] = clip
 
+
+        if not videos:
+            videos = None
+
         inputs_video = self.processor(
             text=text, videos=videos, padding=True, return_tensors="pt"
         ).to(self.model.device)
