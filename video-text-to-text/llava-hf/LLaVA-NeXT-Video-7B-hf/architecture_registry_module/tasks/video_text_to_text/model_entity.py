@@ -35,19 +35,24 @@ class VideoTextToTextModelEntity(ModelEntity):
 
             new_content_items = []
 
-            for content_item in message["content"]:
-                new_content_item = content_item
+            content = message["content"]
 
-                type = content_item["type"]
+            if isinstance(content, str):
+                new_content_items.append({"type": "text", "text": content})
+            else:
+                for content_item in message["content"]:
+                    new_content_item = content_item
 
-                if type == "video":
-                    video_url = content_item["url"]
+                    type = content_item["type"]
 
-                    new_content_item = {"type": "video"}
+                    if type == "video":
+                        video_url = content_item["url"]
 
-                    videos.append(video_url)
+                        new_content_item = {"type": "video"}
 
-                new_content_items.append(new_content_item)
+                        videos.append(video_url)
+
+                    new_content_items.append(new_content_item)
 
             new_message = {**message, "content": new_content_items}
 
