@@ -6,24 +6,18 @@ from streamer import SingleTokenStreamer
 import numpy as np
 
 
-def model_run_generator(user_input, params: dict):
+def model_run_generator(*args, params: dict):
     streamer: SingleTokenStreamer = pipe._forward_params.get("streamer")
 
-    # add the streamer to the pipe if it isn't already there
-    if not streamer:
-        streamer = SingleTokenStreamer(
-            tokenizer=pipe.tokenizer, skip_prompt=False, skip_special_tokens=True
-        )
+    streamer = SingleTokenStreamer(
+            tokenizer=pipe.tokenizer, skip_prompt=True, skip_special_tokens=True
+    )
 
-        pipe._forward_params = {**pipe._forward_params, "streamer": streamer}
-
-    # always clear the stream before a request is made
-    # if we introduce concurrency, then we cannot get away with a singleton
-    streamer.reset()
+    params['streamer'] = streamer
 
     def model_run_thread():
         try:
-            model_run(user_input, params=params)
+            model_run(*args, params=params)
         except Exception as exception:
             streamer.text_queue.put(f"Error: {str(exception)}")
 
