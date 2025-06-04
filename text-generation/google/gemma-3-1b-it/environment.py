@@ -2,6 +2,9 @@ import os
 import json
 import torch
 
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True
+
 # if it hasn't already been set, prefer HF transfer
 os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
 
