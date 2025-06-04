@@ -1,0 +1,1 @@
+minGRU_pytorch==0.2.1
