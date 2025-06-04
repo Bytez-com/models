@@ -49,26 +49,17 @@ class SingleTokenStreamer(BaseStreamer):
         if "�" in text:
             return
 
-        formatted_text = text
+        # this guarantees that regardless of the model, if tokens are not interpreted in isolation that " "'s and other characters are properly added
+        # we compare the text for the previous set of tokens against the new set of tokens.
+        # e.g. tokens [1,2] could map to 1 => "A", 2 => "car", if you decode one by one, you would get the string "Acar"
+        # if you do them together, you get "A car"
+        # so all we're doing is taking "A" and "A car" and slicing off "A" from "A car" to give us " car"
+        prev_text = self.tokenizer.decode(self.all_buffer[:-1], **self.decode_kwargs)
+        full_text = self.tokenizer.decode(self.all_buffer, **self.decode_kwargs)
 
-        # this is to handle tokenizers that add spaces when there are two tokens that should map as having
-        # a space between them
-        if not self.next_tokens_are_prompt and not formatted_text.startswith(" "):
+        diff_text = full_text[len(prev_text) :]
 
-            prev_text = self.tokenizer.decode(
-                self.all_buffer[:-1], **self.decode_kwargs
-            )
-
-            new_text = self.tokenizer.decode(self.all_buffer, **self.decode_kwargs)
-
-            prev_text_len = len(prev_text)
-
-            first_char_of_new_text = new_text[prev_text_len : prev_text_len + 1]
-
-            if first_char_of_new_text == " ":
-                formatted_text = f" {text}"
-
-        self.text_queue.put(formatted_text)
+        self.text_queue.put(diff_text)
 
         self.token_buffer = []
 
