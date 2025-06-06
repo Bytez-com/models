@@ -1,11 +1,8 @@
-from dataclasses import dataclass
-
 from architecture_registry_module.tasks.image_text_to_text.model_entity import (
     ImageTextToTextModelEntity,
 )
 
 
-@dataclass
 class Gemma3ForConditionalGeneration(ImageTextToTextModelEntity):
     def generate(self, text, images, videos, **kwargs):
         kwargs = {**{"generate_kwargs": {"streamer": kwargs.get("streamer")}, **kwargs}}
