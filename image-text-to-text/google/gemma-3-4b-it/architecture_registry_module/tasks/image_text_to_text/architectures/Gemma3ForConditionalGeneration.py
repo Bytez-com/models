@@ -1,21 +1,14 @@
-from dataclasses import dataclass
-
 from architecture_registry_module.tasks.image_text_to_text.model_entity import (
     ImageTextToTextModelEntity,
 )
 
 
-@dataclass
 class Gemma3ForConditionalGeneration(ImageTextToTextModelEntity):
     def generate(self, text, images, videos, **kwargs):
         kwargs = {**{"generate_kwargs": {"streamer": kwargs.get("streamer")}, **kwargs}}
 
         if videos:
             kwargs["videos"] = videos
-
-        # NOTE if images is an empty array, set it to none, it will fail on some models otherwise
-        if not images:
-            images = None
 
         # Save the original
         og_call = self.pipe.processor.__class__.__call__
