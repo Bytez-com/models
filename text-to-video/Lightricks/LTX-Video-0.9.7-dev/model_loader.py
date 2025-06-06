@@ -1,5 +1,6 @@
 from typing import Any
 import torch
+from PIL import ImageOps
 import numpy as np
 from dataclasses import dataclass
 from diffusers import LTXConditionPipeline, LTXLatentUpsamplePipeline
@@ -89,8 +90,8 @@ def pipe(prompt, **kwargs):
 
     print("Done with denoising")
 
-    # Resize each frame
-    frames = [frame.resize((expected_width, expected_height)) for frame in frames]
+    # Resize and invert each frame
+    frames = [ImageOps.invert(frame.resize((expected_width, expected_height)).convert("RGB")) for frame in frames]
 
     # Convert list of PIL to tensor (N, C, H, W)
     tensor_frames = torch.stack(
