@@ -25,7 +25,9 @@ class Idefics3ForConditionalGeneration(ImageTextToTextModelEntity):
 
         output = self.generate(prompt, images, **kwargs)
 
-        output_messages = messages + [{"role": 'assistant', "content": [{"type": 'text', "text": output}]}]
+        output_messages = messages + [
+            {"role": "assistant", "content": [{"type": "text", "text": output}]}
+        ]
 
         return output_messages
 
@@ -61,18 +63,24 @@ class Idefics3ForConditionalGeneration(ImageTextToTextModelEntity):
             image_content_items = []
             new_content_items = []
 
-            for content_item in message["content"]:
-                type = content_item["type"]
+            content = message["content"]
 
-                if type == "text":
-                    content = content_item["text"]
-                    new_content_items.append({"type": "text", "text": content})
-                    text_content += content
+            if isinstance(content, str):
+                new_content_items.append({"type": "text", "text": content})
 
-                elif type == "image":
-                    content = content_item["url"]
-                    image_content_items.append({"type": "image"})
-                    images.append(content)
+            else:
+                for content_item in message["content"]:
+                    type = content_item["type"]
+
+                    if type == "text":
+                        content = content_item["text"]
+                        new_content_items.append({"type": "text", "text": content})
+                        text_content += content
+
+                    elif type == "image":
+                        content = content_item["url"]
+                        image_content_items.append({"type": "image"})
+                        images.append(content)
 
             adapted_messages.append(
                 {
