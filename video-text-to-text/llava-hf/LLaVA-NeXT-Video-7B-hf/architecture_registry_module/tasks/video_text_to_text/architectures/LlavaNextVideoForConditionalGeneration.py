@@ -1,4 +1,3 @@
-from typing import List
 from dataclasses import dataclass
 
 from architecture_registry_module.tasks.video_text_to_text.model_entity import (
@@ -41,39 +40,11 @@ class LlavaNextVideoForConditionalGeneration(VideoTextToTextModelEntity):
 
         output = self.generate(text, videos, **kwargs)
 
-        output_messages = self.adapt_to_output(messages)
-
-        output_messages = output_messages.append(
+        output_messages = messages + [
             {"role": "assistant", "content": [{"type": "text", "text": output}]}
-        )
+        ]
 
         return output_messages
-
-    def adapt_to_output(self, messages: List[dict]):
-        new_messages = []
-
-        for message in messages:
-            new_message = {**message}
-
-            content = new_message["content"]
-
-            new_content = []
-
-            for item in content:
-                new_item = {**item}
-                audio_url = new_item.get("audio_url")
-
-                if audio_url:
-                    new_item["url"] = audio_url
-                    del new_item["audio_url"]
-
-                new_content.append(new_item)
-
-            new_messages.append(new_message)
-
-            new_message["content"] = new_content
-
-        return new_messages
 
     def generate(self, text, videos, **kwargs):
         if videos is None:
