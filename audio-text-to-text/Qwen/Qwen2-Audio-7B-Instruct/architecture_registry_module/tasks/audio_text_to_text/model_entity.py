@@ -42,7 +42,7 @@ class AudioTextToTextModelEntity(ModelEntity):
 
         output = self.generate(text, audios, **kwargs)
 
-        output_messages = messages + [
+        output_messages = adapted_messages + [
             {"role": "assistant", "content": [{"type": "text", "text": output}]}
         ]
 
