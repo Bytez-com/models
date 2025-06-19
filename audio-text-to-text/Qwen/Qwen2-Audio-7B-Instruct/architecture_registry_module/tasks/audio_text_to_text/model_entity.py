@@ -42,9 +42,11 @@ class AudioTextToTextModelEntity(ModelEntity):
 
         output = self.generate(text, audios, **kwargs)
 
-        output_messages = adapted_messages + [
-            {"role": "assistant", "content": [{"type": "text", "text": output}]}
-        ]
+        output_messages = self.adapt_to_output(adapted_messages)
+
+        output_messages.append(
+            [{"role": "assistant", "content": [{"type": "text", "text": output}]}]
+        )
 
         return output_messages
 
@@ -109,6 +111,32 @@ class AudioTextToTextModelEntity(ModelEntity):
             new_messages.append(new_message)
 
         return new_messages, audios
+
+    def adapt_to_output(self, messages: List[dict]):
+        new_messages = []
+
+        for message in messages:
+            new_message = {**message}
+
+            content = new_message["content"]
+
+            new_content = []
+
+            for item in content:
+                new_item = {**item}
+                audio_url = new_item.get("audio_url")
+
+                if audio_url:
+                    new_item["url"] = audio_url
+                    del new_item["audio_url"]
+
+                new_content.append(new_item)
+
+            new_messages.append(new_message)
+
+            new_message["content"] = new_content
+
+        return new_messages
 
 
 # universal stub used by the model loader
