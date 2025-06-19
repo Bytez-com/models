@@ -45,7 +45,7 @@ class AudioTextToTextModelEntity(ModelEntity):
         output_messages = self.adapt_to_output(adapted_messages)
 
         output_messages.append(
-            [{"role": "assistant", "content": [{"type": "text", "text": output}]}]
+            {"role": "assistant", "content": [{"type": "text", "text": output}]}
         )
 
         return output_messages
