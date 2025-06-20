@@ -32,6 +32,10 @@ class Idefics3ForConditionalGeneration(ImageTextToTextModelEntity):
         return output_messages
 
     def generate(self, text, images, **kwargs):
+
+        if not images:
+            images = None
+
         inputs = self.processor(text=text, images=images, return_tensors="pt")
         inputs = inputs.to(self.model.device)
         # Generate outputs
