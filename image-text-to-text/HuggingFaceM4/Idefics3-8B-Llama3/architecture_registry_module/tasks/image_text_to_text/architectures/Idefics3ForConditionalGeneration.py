@@ -32,7 +32,7 @@ class Idefics3ForConditionalGeneration(ImageTextToTextModelEntity):
         return output_messages
 
     def generate(self, text, images, **kwargs):
-
+        # This model does an explicit check for None in its proocessor, otherwise it errors
         if not images:
             images = None
 
