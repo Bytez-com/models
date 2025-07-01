@@ -22,7 +22,7 @@ DEVICES_NO_AUTO = DEVICES[1:]
 DEFAULT_KWARGS = {
     ### params ###
     "model_name_or_path": MODEL_ID,
-    "trust_remote_code": True,
+    "trust_remote_code": True
 }
 
 
