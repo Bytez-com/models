@@ -21,10 +21,18 @@ GPU_MEMORY_UTILIZATION = 0.5
 @dataclass
 class PipeVLLM:
     engine: AsyncLLMEngine
+    tokenizer: Any
 
-    def __call__(self, text, **kwargs):
+    def __call__(self, request_input, **kwargs):
+        prompt = (
+            self.tokenizer.apply_chat_template(request_input, tokenize=False)
+            if isinstance(request_input, list)
+            else request_input
+        )
 
-        result = run_coroutine_sync(self.generate(text, **kwargs), timeout=60 * 10)
+        result = run_coroutine_sync(
+            self.generate(request_input, prompt, **kwargs), timeout=60 * 10
+        )
 
         return result
 
@@ -75,7 +83,7 @@ class PipeVLLM:
 
         return new_kwargs
 
-    async def generate(self, prompt, **kwargs):
+    async def generate(self, request_input, prompt, **kwargs):
         max_new_tokens = kwargs.get("max_new_tokens")
 
         streamer = kwargs.get("streamer")
@@ -93,8 +101,6 @@ class PipeVLLM:
             sampling_params=SamplingParams(**adapted_kwargs),
         )
 
-        new_tokens_count = 0
-
         async for out in stream:
             for output in out.outputs:
                 text = output.text
@@ -105,21 +111,40 @@ class PipeVLLM:
                 if streamer:
                     streamer.put(diff)
 
-                # NOTE this should always be length 1, the only exception would be
-                # if you are using batched output or have some sort of custom multi-token streaming setup
-                new_tokens_count += len(output.token_ids)
-
-                if max_new_tokens and new_tokens_count >= max_new_tokens:
+                if max_new_tokens and len(output.token_ids) >= max_new_tokens:
                     await stream.aclose()
                     break
 
         if streamer:
             streamer.end()
 
-        return [dict(generated_text=f"{prompt}{output_text}")]
+        if isinstance(request_input, str):
+            return [dict(generated_text=f"{prompt}{output_text}")]
+
+        messages: list = request_input
+
+        return [
+            dict(
+                generated_text=[
+                    #
+                    *messages,
+                    dict(role="assistant", content=output_text),
+                ]
+            )
+        ]
 
 
-def load_model_with_vllm(model_id: str, torch_dtype, vllm_kwargs: dict) -> PipeVLLM:
+def load_model_with_vllm(model_id: str, torch_dtype, vllm_kwargs: dict):
+    result = run_coroutine_sync(
+        _load_model_with_vllm(model_id, torch_dtype, vllm_kwargs), timeout=60 * 10
+    )
+
+    return result
+
+
+async def _load_model_with_vllm(
+    model_id: str, torch_dtype, vllm_kwargs: dict
+) -> PipeVLLM:
     max_model_len = vllm_kwargs.get("max_model_len", 4096)
     block_size = vllm_kwargs.get("block_size", 16)
 
@@ -154,9 +179,14 @@ def load_model_with_vllm(model_id: str, torch_dtype, vllm_kwargs: dict) -> PipeV
         engine_args, usage_context=UsageContext.ENGINE_CONTEXT
     )
 
+    tokenizer = await engine.get_tokenizer()
+
     print("vLLM loaded")
 
-    return PipeVLLM(engine=engine)
+    return PipeVLLM(
+        engine=engine,
+        tokenizer=tokenizer,
+    )
 
 
 # this allows us to run async functions in sync code
