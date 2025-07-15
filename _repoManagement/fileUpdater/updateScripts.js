@@ -2,75 +2,108 @@ const { higherOrderIterator } = require("../higherOrderIterator");
 
 const fs = require("fs").promises;
 
+const tasksToUpdate = [
+  // "text-generation",
+  "image-text-to-text",
+  "audio-text-to-text",
+  "video-text-to-text"
+];
+
+const filesToUpdate = [
+  "environment.py",
+  "model_loader.py",
+  "streamer.py",
+  "utils.py",
+  "vllm_loader.py",
+  "vllm_mocks.py"
+];
+
 async function main() {
-  const nameOfFileToUpdate = "streamer.py";
-
-  const newFilePath = `${__dirname}/../../../templates/default/${nameOfFileToUpdate}`;
-
-  const newFileBuffer = await fs.readFile(newFilePath);
-
-  const newFileContents = newFileBuffer.toString();
-
-  console.log("New file is:\n\n", newFileContents);
-
-  const updatedModels = [];
-  const notUpdatedModels = [];
-
-  const failedModels = [];
-
   const pathToIterateOver = `${__dirname}/../../../modelsRepo`;
 
+  const pathsToIterateOver = tasksToUpdate.map(
+    task => `${pathToIterateOver}/${task}`
+  );
+
   const modelPathObjects = await higherOrderIterator(
-    pathToIterateOver,
-    async (index, modelPathObject, modelPathObjects) => {
-      const { modelId, githubLink, file, filePath } = modelPathObject;
+    pathsToIterateOver,
+    async () => undefined,
+    undefined,
+    tasksToUpdate
+  );
 
-      console.log(
-        `On model: ${modelId} (${index + 1}/${modelPathObjects.length})`
-      );
+  for (const nameOfFileToUpdate of filesToUpdate) {
+    const newFilePath = `${__dirname}/../../../templates/default/${nameOfFileToUpdate}`;
 
-      const fileToUpdatePath = `${filePath}/${nameOfFileToUpdate}`;
+    const newFileBuffer = await fs.readFile(newFilePath);
 
-      // overwrite the target file with the new file contents
-      try {
-        const exists = await fs
-          .stat(fileToUpdatePath)
-          .then(() => true)
-          .catch(() => false);
+    const newFileContents = newFileBuffer.toString();
 
-        if (!exists) {
-          await fs.writeFile(fileToUpdatePath, newFileBuffer);
-          updatedModels.push(modelPathObject);
+    console.log("New file is:\n\n", newFileContents);
 
-          return;
+    const updatedModels = [];
+    const notUpdatedModels = [];
+
+    const failedModels = [];
+
+    for (const [index, modelPathObject] of modelPathObjects.map((v, i) => [
+      i,
+      v
+    ])) {
+      {
+        const { modelId, githubLink, file, filePath, task } = modelPathObject;
+
+        if (!tasksToUpdate.includes(task)) {
+          continue;
         }
 
-        const buffer = await fs.readFile(fileToUpdatePath);
-        const oldFileContents = buffer.toString();
+        console.log(
+          `On model: ${modelId} (${index + 1}/${modelPathObjects.length})`
+        );
 
-        if (oldFileContents !== newFileContents) {
-          await fs.writeFile(fileToUpdatePath, newFileBuffer);
-          updatedModels.push(modelPathObject);
-        } else {
-          notUpdatedModels.push(modelPathObject);
+        const fileToUpdatePath = `${filePath}/${nameOfFileToUpdate}`;
+
+        // overwrite the target file with the new file contents
+        try {
+          const exists = await fs
+            .stat(fileToUpdatePath)
+            .then(() => true)
+            .catch(() => false);
+
+          if (!exists) {
+            await fs.writeFile(fileToUpdatePath, newFileBuffer);
+            updatedModels.push(modelPathObject);
+
+            continue;
+          }
+
+          const buffer = await fs.readFile(fileToUpdatePath);
+          const oldFileContents = buffer.toString();
+
+          if (oldFileContents !== newFileContents) {
+            await fs.writeFile(fileToUpdatePath, newFileBuffer);
+            updatedModels.push(modelPathObject);
+          } else {
+            notUpdatedModels.push(modelPathObject);
+          }
+        } catch (error) {
+          failedModels.push(modelPathObject);
         }
-      } catch (error) {
-        failedModels.push(modelPathObject);
       }
     }
-  );
 
-  console.log(`Total models: ${modelPathObjects.length}`);
-  console.log(
-    `File: ${nameOfFileToUpdate} updated for ${updatedModels.length} models`
-  );
-  console.log(
-    `${notUpdatedModels.length} models had the same contents and were not updated`
-  );
+    console.log(`Total models: ${modelPathObjects.length}`);
+    console.log(
+      `File: ${nameOfFileToUpdate} updated for ${updatedModels.length} models`
+    );
+    console.log(
+      `${notUpdatedModels.length} models had the same contents and were not updated`
+    );
 
-  console.log("Number of models that failed: ", failedModels.length);
+    console.log("Number of models that failed: ", failedModels.length);
 
-  debugger;
+    debugger;
+  }
 }
 
 if (require.main === module) {
