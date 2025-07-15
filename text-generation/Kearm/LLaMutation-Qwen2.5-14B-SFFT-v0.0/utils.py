@@ -2,32 +2,28 @@ import time
 import threading
 from model import model_run
 from model import pipe
-from streamer import SingleTokenStreamer
+from streamer import SingleTokenStreamer, SingleTokenStreamerVllm
 import numpy as np
+from environment import LOAD_WITH_VLLM
 
 
-def model_run_generator(user_input, params: dict):
-    streamer: SingleTokenStreamer = pipe._forward_params.get("streamer")
+def model_run_generator(*args, params: dict):
 
-    # add the streamer to the pipe if it isn't already there
-    if not streamer:
+    if LOAD_WITH_VLLM:
+        streamer = SingleTokenStreamerVllm()
+    else:
         streamer = SingleTokenStreamer(
-            tokenizer=pipe.tokenizer, skip_prompt=False, skip_special_tokens=True
+            tokenizer=pipe.tokenizer, skip_prompt=True, skip_special_tokens=True
         )
 
-        pipe._forward_params = {**pipe._forward_params, "streamer": streamer}
-
-    # always clear the stream before a request is made
-    # if we introduce concurrency, then we cannot get away with a singleton
-    streamer.reset()
+    params["streamer"] = streamer
 
     def model_run_thread():
         try:
-            model_run(user_input, params=params)
+            model_run(*args, params=params)
         except Exception as exception:
-            streamer.text_queue.put(
-                'INTERNAL_BYTEZ_ERROR: arg "stream" was likely passed to a model that does not support streaming.'
-            )
+            streamer.text_queue.put(f"Error: {str(exception)}")
+
             # make sure the generator stops on an exception, otherwise the request will hang and never complete
             streamer.end()
             raise exception

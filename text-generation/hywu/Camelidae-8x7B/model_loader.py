@@ -1,6 +1,13 @@
 from collections import OrderedDict
 from transformers import pipeline
-from environment import MODEL_ID, TASK, DEVICE, MODEL_LOADING_KWARGS
+from environment import (
+    MODEL_ID,
+    TASK,
+    DEVICE,
+    MODEL_LOADING_KWARGS,
+    LOAD_WITH_VLLM,
+    VLLM_KWARGS,
+)
 from validate_pipe import validate_pipe
 
 
@@ -22,11 +29,11 @@ DEFAULT_KWARGS = {
     ### params ###
     "task": TASK,
     "model": MODEL_ID,
-    "trust_remote_code": True,
 }
 
 
 def try_loading():
+
     # we'll try loading on "device_map" first, then "device". This is to ensure a model at least runs on the CPU if
     # it fails to load on cuda on an instance
     loading_methods = [
@@ -61,10 +68,26 @@ def try_loading():
     raise collected_exception
 
 
-pipe = try_loading()
+# if LOAD_WITH_VLLM and False:
+if LOAD_WITH_VLLM:
+    import os
 
-# this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
-validate_pipe(pipe)
+    # disable the majority of vllm logs (very noisy)
+    os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
+
+    # we defer loading on purpose, there are side effects that result in a slow down
+    from vllm_loader import load_model_with_vllm
+
+    pipe = load_model_with_vllm(
+        model_id=MODEL_ID,
+        torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
+        vllm_kwargs=VLLM_KWARGS,
+    )
+else:
+    pipe = try_loading()
+    # this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
+    validate_pipe(pipe)
+
 
 print("Model loaded")
 

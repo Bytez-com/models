@@ -4,6 +4,28 @@ from queue import Queue
 from environment import MODEL_LOGGING
 
 
+class SingleTokenStreamerVllm(BaseStreamer):
+    def __init__(self):
+        self.text_queue = Queue()
+
+    def put(self, value: str):
+        self.text_queue.put(value)
+
+    def end(self):
+        """If the stream is ending, also put a stop signal in the queue."""
+        self.text_queue.put(None)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        value = self.text_queue.get()
+        if value is None:
+            raise StopIteration()
+        else:
+            return value
+
+
 class SingleTokenStreamer(BaseStreamer):
 
     def __init__(
