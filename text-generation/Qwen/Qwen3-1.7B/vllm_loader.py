@@ -1,5 +1,6 @@
 import asyncio
-import nest_asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Coroutine
 
 # NOTE important, these make vLLM think it has EiB's worth of GPU memory
@@ -15,7 +16,6 @@ from vllm.usage.usage_lib import UsageContext
 # NOTE we lie to vllm and tell it it has EiB's worth of VRAM
 # so this is semi arbitrary. However, internally vLLM says, you have 0.5EiB available, if it takes more than 0.5 EiB throw
 GPU_MEMORY_UTILIZATION = 0.5
-COUNT = 0
 
 
 @dataclass
@@ -30,7 +30,9 @@ class PipeVLLM:
             else request_input
         )
 
-        result = run_coroutine_sync(self.generate(request_input, prompt, **kwargs))
+        result = run_coroutine_sync(
+            self.generate(request_input, prompt, **kwargs), timeout=60 * 10
+        )
 
         return result
 
@@ -82,6 +84,8 @@ class PipeVLLM:
         return new_kwargs
 
     async def generate(self, request_input, prompt, **kwargs):
+        max_new_tokens = kwargs.get("max_new_tokens")
+
         streamer = kwargs.get("streamer")
 
         if streamer:
@@ -109,6 +113,10 @@ class PipeVLLM:
                 if streamer:
                     streamer.put(diff)
 
+                if max_new_tokens and len(output.token_ids) >= max_new_tokens:
+                    await stream.aclose()
+                    break
+
         self.engine.shutdown_background_loop()
 
         if streamer:
@@ -132,7 +140,7 @@ class PipeVLLM:
 
 def load_model_with_vllm(model_id: str, torch_dtype, vllm_kwargs: dict):
     result = run_coroutine_sync(
-        _load_model_with_vllm(model_id, torch_dtype, vllm_kwargs)
+        _load_model_with_vllm(model_id, torch_dtype, vllm_kwargs), timeout=60 * 10
     )
 
     return result
@@ -185,6 +193,27 @@ async def _load_model_with_vllm(
     )
 
 
-def run_coroutine_sync(coroutine: Coroutine[Any, Any, Any]):
-    nest_asyncio.apply()
-    return asyncio.run(coroutine)
+# this allows us to run async functions in sync code
+def run_coroutine_sync(coroutine: Coroutine[Any, Any, Any], timeout: float = 30):
+    def run_in_new_loop():
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        try:
+            return new_loop.run_until_complete(coroutine)
+        finally:
+            new_loop.close()
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+
+    if threading.current_thread() is threading.main_thread():
+        if not loop.is_running():
+            return loop.run_until_complete(coroutine)
+        else:
+            with ThreadPoolExecutor() as pool:
+                future = pool.submit(run_in_new_loop)
+                return future.result(timeout=timeout)
+    else:
+        return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
