@@ -93,7 +93,7 @@ class PipeVLLM:
 
         adapted_kwargs = self.adapt_hf_to_vllm_kwargs(**kwargs)
 
-        # self.engine.start_background_loop()
+        self.engine.start_background_loop()
 
         stream = self.engine.generate(
             request_id="fake_req_id",
@@ -111,7 +111,7 @@ class PipeVLLM:
                 if streamer:
                     streamer.put(diff)
 
-        # self.engine.shutdown_background_loop()
+        self.engine.shutdown_background_loop()
 
         if streamer:
             streamer.end()
