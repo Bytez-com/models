@@ -84,8 +84,6 @@ class PipeVLLM:
         return new_kwargs
 
     async def generate(self, request_input, prompt, **kwargs):
-        max_new_tokens = kwargs.get("max_new_tokens")
-
         streamer = kwargs.get("streamer")
 
         if streamer:
@@ -95,7 +93,7 @@ class PipeVLLM:
 
         adapted_kwargs = self.adapt_hf_to_vllm_kwargs(**kwargs)
 
-        self.engine.start_background_loop()
+        # self.engine.start_background_loop()
 
         stream = self.engine.generate(
             request_id="fake_req_id",
@@ -113,11 +111,7 @@ class PipeVLLM:
                 if streamer:
                     streamer.put(diff)
 
-                if max_new_tokens and len(output.token_ids) >= max_new_tokens:
-                    await stream.aclose()
-                    break
-
-        self.engine.shutdown_background_loop()
+        # self.engine.shutdown_background_loop()
 
         if streamer:
             streamer.end()
