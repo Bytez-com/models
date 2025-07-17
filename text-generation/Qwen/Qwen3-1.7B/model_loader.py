@@ -73,7 +73,7 @@ if LOAD_WITH_VLLM:
     import os
 
     # disable the majority of vllm logs (very noisy)
-    os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
+    # os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
 
     # we defer loading on purpose, there are side effects that result in a slow down
     from vllm_loader import load_model_with_vllm
