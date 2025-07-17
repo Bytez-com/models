@@ -1,17 +1,18 @@
-import asyncio
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Coroutine
-
-# NOTE important, these make vLLM think it has EiB's worth of GPU memory
-import vllm_mocks
-import math
 from dataclasses import dataclass
-from vllm import SamplingParams
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.engine.async_llm_engine import AsyncLLMEngine
-from vllm.usage.usage_lib import UsageContext
+import json
+import math
+import os
+import subprocess
+import time
+import sys
+import threading
 
+import requests
+
+PYTHON_EXECUTABLE = sys.executable
+
+
+WORKING_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # NOTE we lie to vllm and tell it it has EiB's worth of VRAM
 # so this is semi arbitrary. However, internally vLLM says, you have 0.5EiB available, if it takes more than 0.5 EiB throw
@@ -20,20 +21,11 @@ GPU_MEMORY_UTILIZATION = 0.5
 
 @dataclass
 class PipeVLLM:
-    engine: AsyncLLMEngine
-    tokenizer: Any
+    model_id: str
+    port: int
 
     def __call__(self, request_input, **kwargs):
-        prompt = (
-            self.tokenizer.apply_chat_template(request_input, tokenize=False)
-            if isinstance(request_input, list)
-            else request_input
-        )
-
-        result = run_coroutine_sync(
-            self.generate(request_input, prompt, **kwargs), timeout=60 * 10
-        )
-
+        result = self.generate(request_input, **kwargs)
         return result
 
     def adapt_hf_to_vllm_kwargs(self, **kwargs) -> dict:
@@ -83,41 +75,63 @@ class PipeVLLM:
 
         return new_kwargs
 
-    async def generate(self, request_input, prompt, **kwargs):
+    def generate(self, request_input, **kwargs):
         streamer = kwargs.get("streamer")
+
+        stream = False
 
         if streamer:
             del kwargs["streamer"]
-
-        output_text = ""
+            stream = True
 
         adapted_kwargs = self.adapt_hf_to_vllm_kwargs(**kwargs)
 
-        self.engine.start_background_loop()
+        endpoint = ""
 
-        stream = self.engine.generate(
-            request_id="fake_req_id",
-            prompt=prompt,
-            sampling_params=SamplingParams(**adapted_kwargs),
+        is_string_input = isinstance(request_input, str)
+
+        if is_string_input:
+            adapted_kwargs["prompt"] = request_input
+            endpoint = "/v1/completions"
+        else:
+            adapted_kwargs["messages"] = request_input
+            endpoint = "/v1/chat/completions"
+
+        response = requests.post(
+            f"http://localhost:{self.port}{endpoint}",
+            headers={"Content-Type": "application/json"},
+            json={
+                "model": self.model_id,
+                "stream": stream,
+                **adapted_kwargs,
+            },
+            # we always stream because we get the same result back
+            # NOTE there may be performance downsides to this, albeit minor
+            stream=True,
         )
 
-        async for out in stream:
-            for output in out.outputs:
-                text = output.text
+        output_text = ""
+        for line in response.iter_lines(decode_unicode=True):
+            if line:
+                if line.strip() == "data: [DONE]":
+                    break
+                if line.startswith("data: "):
+                    payload = json.loads(line[len("data: ") :])
 
-                diff = text[len(output_text) :]
-                output_text = text
+                    if is_string_input:
+                        delta = payload["choices"][0]["text"]
 
-                if streamer:
-                    streamer.put(diff)
+                    else:
+                        delta = payload["choices"][0]["delta"].get("content", "")
 
-        self.engine.shutdown_background_loop()
+                    output_text += delta
+                    streamer.put(delta)
 
         if streamer:
             streamer.end()
 
-        if isinstance(request_input, str):
-            return [dict(generated_text=f"{prompt}{output_text}")]
+        if is_string_input:
+            return [dict(generated_text=f"{request_input}{output_text}")]
 
         messages: list = request_input
 
@@ -132,17 +146,11 @@ class PipeVLLM:
         ]
 
 
-def load_model_with_vllm(model_id: str, torch_dtype, vllm_kwargs: dict):
-    result = run_coroutine_sync(
-        _load_model_with_vllm(model_id, torch_dtype, vllm_kwargs), timeout=60 * 10
-    )
-
-    return result
-
-
-async def _load_model_with_vllm(
-    model_id: str, torch_dtype, vllm_kwargs: dict
+def load_model_with_vllm(
+    model_id: str, port: int, torch_dtype, vllm_kwargs: dict
 ) -> PipeVLLM:
+    print("Starting vLLM server...")
+
     max_model_len = vllm_kwargs.get("max_model_len", 4096)
     block_size = vllm_kwargs.get("block_size", 16)
 
@@ -153,9 +161,10 @@ async def _load_model_with_vllm(
     # which is presumably used for swapping or something to that effect. There may also be a bad conditional statement in their code
     num_blocks = math.ceil(max_model_len / block_size) + 1
 
-    kwargs = {
+    args_dict = {
         **dict(
             model=model_id,
+            port=port,
             dtype=torch_dtype if torch_dtype else "auto",
             max_model_len=max_model_len,
             gpu_memory_utilization=GPU_MEMORY_UTILIZATION,
@@ -167,47 +176,56 @@ async def _load_model_with_vllm(
         **vllm_kwargs,
     }
 
-    print("Loading vLLM...")
+    # using PYTHON_EXECUTABLE allows the same version of python that launched this script to run the vLLM server
+    # important with conda/venv, dockerfile already has deps installed, this provides flexibility while developing outside of the docker context
+    args = [PYTHON_EXECUTABLE, f"{WORKING_DIR}/vllm_server.py"]
+    if torch_dtype:
+        args += ["--dtype", str(torch_dtype)]
 
-    engine_args = AsyncEngineArgs(
-        **kwargs,
-    )
-
-    engine = AsyncLLMEngine.from_engine_args(
-        engine_args, usage_context=UsageContext.ENGINE_CONTEXT
-    )
-
-    tokenizer = await engine.get_tokenizer()
-
-    print("vLLM loaded")
-
-    return PipeVLLM(
-        engine=engine,
-        tokenizer=tokenizer,
-    )
-
-
-# this allows us to run async functions in sync code
-def run_coroutine_sync(coroutine: Coroutine[Any, Any, Any], timeout: float = 30):
-    def run_in_new_loop():
-        new_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(new_loop)
-        try:
-            return new_loop.run_until_complete(coroutine)
-        finally:
-            new_loop.close()
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coroutine)
-
-    if threading.current_thread() is threading.main_thread():
-        if not loop.is_running():
-            return loop.run_until_complete(coroutine)
+    for key, value in args_dict.items():
+        flag = f"--{key.replace('_', '-')}"
+        if isinstance(value, bool):
+            if value:
+                args.append(flag)
         else:
-            with ThreadPoolExecutor() as pool:
-                future = pool.submit(run_in_new_loop)
-                return future.result(timeout=timeout)
-    else:
-        return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
+            args += [flag, str(value)]
+
+    env = os.environ.copy()
+
+    process = subprocess.Popen(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        start_new_session=True,
+        env=env,
+    )
+
+    def stream_logs(proc):
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+
+    threading.Thread(target=stream_logs, args=(process,), daemon=True).start()
+
+    # Optional: wait for the server to come up
+    timeout = 60 * 10
+    start = time.time()
+    while True:
+        try:
+            import requests
+
+            response = requests.get(f"http://localhost:{port}/health", timeout=2)
+            if response.ok:
+                break
+        except Exception:
+            pass
+
+        if time.time() - start > timeout:
+            process.terminate()
+            raise TimeoutError("vLLM server failed to start in time.")
+
+        time.sleep(1)
+
+    print("vLLM server started.")
+
+    return PipeVLLM(model_id=model_id, port=port)

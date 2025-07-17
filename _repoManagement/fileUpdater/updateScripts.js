@@ -3,21 +3,22 @@ const { higherOrderIterator } = require("../higherOrderIterator");
 const fs = require("fs").promises;
 
 const tasksToUpdate = [
-  // "summarization",
-  // "translation",
-  // // "text-generation",
-  // "text2text-generation",
-  "image-text-to-text",
-  "video-text-to-text",
-  "audio-text-to-text"
+  "summarization",
+  "translation",
+  "text-generation",
+  "text2text-generation"
+  // "image-text-to-text",
+  // "video-text-to-text",
+  // "audio-text-to-text"
 ];
 
 const filesToUpdate = [
   // "environment.py",
-  "model_loader.py"
+  "model_loader.py",
   // "streamer.py"
   // "utils.py",
-  // "vllm_loader.py"
+  "vllm_loader.py",
+  "vllm_server.py"
   // "vllm_mocks.py"
 ];
 
