@@ -12,4 +12,3 @@ scipy==1.14.0
 soundfile==0.12.1
 soxr==0.3.7
 threadpoolctl==3.5.0
-torchaudio==2.6.0

@@ -1,2 +1,1 @@
-transformers==4.52.1
 hf_xet==1.1.2

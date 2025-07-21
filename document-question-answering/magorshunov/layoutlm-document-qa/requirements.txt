@@ -1,3 +1,2 @@
 pyarrow-hotfix==0.6
 pytesseract==0.3.13
-pillow==11.1.0
