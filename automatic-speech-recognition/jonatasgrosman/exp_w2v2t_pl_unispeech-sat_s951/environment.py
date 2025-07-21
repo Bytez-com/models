@@ -69,6 +69,9 @@ TORCH_DTYPE = MODEL_LOADING_KWARGS.get("torch_dtype")
 if TORCH_DTYPE:
     MODEL_LOADING_KWARGS["torch_dtype"] = getattr(torch, TORCH_DTYPE)
 
+LOAD_WITH_VLLM = json.loads(os.environ.get("LOAD_WITH_VLLM", "false"))
+VLLM_KWARGS = json.loads(os.environ.get("VLLM_KWARGS", "{}"))
+
 CONSTANTS_DICT = {
     "TASK": TASK,
     "MODEL": MODEL_ID,
@@ -91,6 +94,8 @@ CONSTANTS_DICT = {
             "HF_PARALLEL_DOWNLOADING_WORKERS": HF_PARALLEL_DOWNLOADING_WORKERS,
             "DISABLE_PARALLEL_LOADING": DISABLE_PARALLEL_LOADING,
             "PARALLEL_LOADING_WORKERS": PARALLEL_LOADING_WORKERS,
+            "LOAD_WITH_VLLM": LOAD_WITH_VLLM,
+            "VLLM_KWARGS": VLLM_KWARGS,
         }
         if DISABLE_ANALYTICS
         else {}
