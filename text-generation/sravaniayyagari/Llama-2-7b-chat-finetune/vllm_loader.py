@@ -78,11 +78,8 @@ class PipeVLLM:
     def generate(self, request_input, **kwargs):
         streamer = kwargs.get("streamer")
 
-        stream = False
-
         if streamer:
             del kwargs["streamer"]
-            stream = True
 
         adapted_kwargs = self.adapt_hf_to_vllm_kwargs(**kwargs)
 
@@ -102,13 +99,19 @@ class PipeVLLM:
             headers={"Content-Type": "application/json"},
             json={
                 "model": self.model_id,
-                "stream": stream,
+                "stream": True,
                 **adapted_kwargs,
             },
             # we always stream because we get the same result back
             # NOTE there may be performance downsides to this, albeit minor
             stream=True,
         )
+
+        if not response.ok:
+            error_obj = response.json()
+            error_type = error_obj["type"]
+            message = error_obj["message"]
+            raise Exception(f"{error_type}: {message}")
 
         output_text = ""
         for line in response.iter_lines(decode_unicode=True):
@@ -125,7 +128,9 @@ class PipeVLLM:
                         delta = payload["choices"][0]["delta"].get("content", "")
 
                     output_text += delta
-                    streamer.put(delta)
+
+                    if streamer:
+                        streamer.put(delta)
 
         if streamer:
             streamer.end()
