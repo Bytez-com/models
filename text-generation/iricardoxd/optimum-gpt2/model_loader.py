@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from transformers import pipeline
+from optimum.pipelines import pipeline
 from environment import (
     MODEL_ID,
     TASK,
@@ -29,6 +29,7 @@ DEFAULT_KWARGS = {
     ### params ###
     "task": TASK,
     "model": MODEL_ID,
+    "accelerator": "ort",
     "model_kwargs": { "use_cache": False, "use_io_binding": False }
 }
 
@@ -58,7 +59,9 @@ def try_loading():
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)
 
-                pipe = pipeline(**kwargs)
+                del kwargs["task"]
+
+                pipe = pipeline(TASK, **kwargs)
 
                 print(f"Loaded model via '{loading_method}' on device: ", device)
 
