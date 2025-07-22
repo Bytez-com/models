@@ -33,7 +33,7 @@ DEFAULT_KWARGS = {
 }
 
 # ORT requires task be passed in as an arg
-del kwargs["task"]
+del DEFAULT_KWARGS["task"]
 
 
 def try_loading():
