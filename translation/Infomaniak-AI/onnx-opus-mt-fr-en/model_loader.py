@@ -27,8 +27,9 @@ DEVICES_NO_AUTO = DEVICES[1:]
 
 DEFAULT_KWARGS = {
     ### params ###
+    "accelerator": "ort",
     "task": TASK,
-    "model": MODEL_ID,
+    "model": MODEL_ID
 }
 
 

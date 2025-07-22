@@ -29,6 +29,7 @@ DEFAULT_KWARGS = {
     ### params ###
     "task": TASK,
     "model": MODEL_ID,
+    "model_kwargs": { "use_cache": False, "use_io_binding": False }
 }
 
 
