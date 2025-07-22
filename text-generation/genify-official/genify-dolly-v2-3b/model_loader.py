@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from transformers import pipeline
+from optimum.pipelines import pipeline
 from environment import (
     MODEL_ID,
     TASK,
@@ -32,6 +32,9 @@ DEFAULT_KWARGS = {
     "trust_remote_code": True
 }
 
+# ORT requires task be passed in as an arg
+del kwargs["task"]
+
 
 def try_loading():
 
@@ -58,7 +61,7 @@ def try_loading():
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)
 
-                pipe = pipeline(**kwargs)
+                pipe = pipeline(TASK, **kwargs)
 
                 print(f"Loaded model via '{loading_method}' on device: ", device)
 
