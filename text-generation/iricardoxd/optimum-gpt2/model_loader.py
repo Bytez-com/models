@@ -33,6 +33,9 @@ DEFAULT_KWARGS = {
     "model_kwargs": { "use_cache": False, "use_io_binding": False }
 }
 
+# ORT requires task be passed in as an arg
+del kwargs["task"]
+
 
 def try_loading():
 
@@ -58,8 +61,6 @@ def try_loading():
 
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)
-
-                del kwargs["task"]
 
                 pipe = pipeline(TASK, **kwargs)
 
