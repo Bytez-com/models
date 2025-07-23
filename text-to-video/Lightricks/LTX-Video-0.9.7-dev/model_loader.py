@@ -9,9 +9,7 @@ from environment import MODEL_ID, MODEL_LOADING_KWARGS
 # Load transformer with FP8 casting
 transformer = AutoModel.from_pretrained(
     MODEL_ID,
-    subfolder="transformer",
-    torch_dtype=torch.bfloat16,
-    **MODEL_LOADING_KWARGS,
+    **dict(subfolder="transformer", torch_dtype=torch.bfloat16, **MODEL_LOADING_KWARGS),
 )
 transformer.enable_layerwise_casting(
     storage_dtype=torch.float8_e4m3fn, compute_dtype=torch.bfloat16
@@ -19,7 +17,8 @@ transformer.enable_layerwise_casting(
 
 # Load pipeline
 pipeline = LTXPipeline.from_pretrained(
-    MODEL_ID, transformer=transformer, torch_dtype=torch.bfloat16
+    MODEL_ID,
+    **dict(transformer=transformer, torch_dtype=torch.bfloat16, **MODEL_LOADING_KWARGS),
 )
 
 # Apply group-offloading
