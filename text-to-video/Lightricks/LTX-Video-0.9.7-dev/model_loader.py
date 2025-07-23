@@ -1,113 +1,46 @@
 from typing import Any
-import torch
-from PIL import ImageOps
-import numpy as np
 from dataclasses import dataclass
-from diffusers import LTXConditionPipeline, LTXLatentUpsamplePipeline
+import torch
+from diffusers import LTXPipeline, AutoModel
+from diffusers.hooks import apply_group_offloading
 from environment import MODEL_ID, MODEL_LOADING_KWARGS
 
-_pipe = LTXConditionPipeline.from_pretrained(
-    #
+
+# Load transformer with FP8 casting
+transformer = AutoModel.from_pretrained(
     MODEL_ID,
+    subfolder="transformer",
     torch_dtype=torch.bfloat16,
-    device_map="balanced",
     **MODEL_LOADING_KWARGS,
 )
-
-pipe_upsample = LTXLatentUpsamplePipeline.from_pretrained(
-    "Lightricks/ltxv-spatial-upscaler-0.9.7",
-    vae=_pipe.vae,
-    torch_dtype=torch.bfloat16,
-    device_map="balanced",
-    **MODEL_LOADING_KWARGS,
+transformer.enable_layerwise_casting(
+    storage_dtype=torch.float8_e4m3fn, compute_dtype=torch.bfloat16
 )
 
-_pipe.vae.enable_tiling()
+# Load pipeline
+pipeline = LTXPipeline.from_pretrained(
+    MODEL_ID, transformer=transformer, torch_dtype=torch.bfloat16
+)
 
+# Apply group-offloading
+onload_device = torch.device("cuda")
+offload_device = torch.device("cpu")
 
-def round_to_nearest_resolution_acceptable_by_vae(height, width):
-    height = height - (height % _pipe.vae_spatial_compression_ratio)
-    width = width - (width % _pipe.vae_spatial_compression_ratio)
-    return height, width
-
-
-def pipe(prompt, **kwargs):
-    downscale_factor = 2 / 3
-
-    expected_height = kwargs.get("height", 704)
-    expected_width = kwargs.get("height", 512)
-
-    if kwargs.get("height"):
-        del kwargs["height"]
-
-    if kwargs.get("width"):
-        del kwargs["width"]
-
-    # Part 1. Generate video at smaller resolution
-    downscaled_height = int(expected_height * downscale_factor)
-
-    downscaled_width = int(expected_width * downscale_factor)
-
-    downscaled_height, downscaled_width = round_to_nearest_resolution_acceptable_by_vae(
-        downscaled_height, downscaled_width
-    )
-
-    latents = _pipe(
-        prompt=prompt,
-        width=downscaled_width,
-        height=downscaled_height,
-        generator=torch.Generator().manual_seed(0),
-        output_type="latent",
-        **kwargs,
-    ).frames
-
-    print("Done with latent")
-
-    # Part 2. Upscale generated video using latent upsampler with fewer inference steps
-    # The available latent upsampler upscales the height/width by 2x
-    upscaled_height, upscaled_width = downscaled_height * 2, downscaled_width * 2
-    upscaled_latents = pipe_upsample(latents=latents, output_type="latent").frames
-
-    if kwargs.get("num_inference_steps"):
-        del kwargs["num_inference_steps"]
-
-    # !!NOTE TODO!! AttributeError: 'list' object has no attribute 'frames' FIX THIS
-
-    # Part 3. Denoise the upscaled video with few steps to improve texture (optional, but recommended)
-    frames = _pipe(
-        prompt=prompt,
-        width=upscaled_width,
-        height=upscaled_height,
-        denoise_strength=0.4,  # Effectively, 4 inference steps out of 10
-        num_inference_steps=10,
-        latents=upscaled_latents,
-        decode_timestep=0.05,
-        image_cond_noise_scale=0.025,
-        generator=torch.Generator().manual_seed(0),
-        output_type="pil",
-        **kwargs,
-    ).frames[0]
-
-    print("Done with denoising")
-
-    # Resize and invert each frame
-    frames = [ImageOps.invert(frame.resize((expected_width, expected_height)).convert("RGB")) for frame in frames]
-
-    # Convert list of PIL to tensor (N, C, H, W)
-    tensor_frames = torch.stack(
-        [torch.from_numpy(np.array(f)).permute(2, 0, 1) for f in frames]
-    )
-
-    # Safeguard for single-frame videos
-    if tensor_frames.ndim == 3:
-        tensor_frames = tensor_frames.unsqueeze(0)
-
-    # Convert back to list of ndarrays (H, W, C) for export_to_video
-    np_frames = [f.permute(1, 2, 0).cpu().numpy() for f in tensor_frames]
-
-    video_result = VideoResult(np_frames=np_frames)
-
-    return video_result
+pipeline.transformer.enable_group_offload(
+    onload_device=onload_device,
+    offload_device=offload_device,
+    offload_type="leaf_level",
+    use_stream=True,
+)
+apply_group_offloading(
+    pipeline.text_encoder,
+    onload_device=onload_device,
+    offload_type="block_level",
+    num_blocks_per_group=2,
+)
+apply_group_offloading(
+    pipeline.vae, onload_device=onload_device, offload_type="leaf_level"
+)
 
 
 @dataclass
@@ -122,6 +55,30 @@ class VideoResult:
         return self
 
 
+def pipe(prompt: str, **kwargs):
+    updated_kwargs = {
+        **dict(
+            prompt=prompt,
+            num_frames=24,
+            num_inference_steps=30,
+            decode_timestep=0.03,
+            decode_noise_scale=0.025,
+            width=768,
+            height=512,
+            **kwargs,
+        )
+    }
+
+    # Run pipeline
+    output = pipeline(**updated_kwargs)
+
+    video = output.frames[0]
+
+    # Return wrapped result
+    video_result = VideoResult(np_frames=video)
+    return video_result
+
+
 print("Model loaded")
 
 
@@ -129,7 +86,6 @@ def load_model():
     # instructions: do not modify this function
     # export the model loaded into global memory
     global pipe
-
     return pipe
 
 
