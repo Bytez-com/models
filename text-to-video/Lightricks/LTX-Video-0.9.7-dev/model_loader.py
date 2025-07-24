@@ -1,10 +1,15 @@
+import os
 from typing import Any
 from dataclasses import dataclass
 import torch
-from diffusers import LTXPipeline, AutoModel
+from diffusers import LTXConditionPipeline, AutoModel
+from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
 from diffusers.hooks import apply_group_offloading
 from environment import MODEL_ID, MODEL_LOADING_KWARGS
+from diffusers.utils import export_to_video, load_image, load_video
 
+
+WORKING_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # Load transformer with FP8 casting
 transformer = AutoModel.from_pretrained(
@@ -16,7 +21,7 @@ transformer.enable_layerwise_casting(
 )
 
 # Load pipeline
-pipeline = LTXPipeline.from_pretrained(
+pipeline = LTXConditionPipeline.from_pretrained(
     MODEL_ID,
     **dict(transformer=transformer, torch_dtype=torch.bfloat16, **MODEL_LOADING_KWARGS),
 )
@@ -55,23 +60,54 @@ class VideoResult:
 
 
 def pipe(prompt: str, **kwargs):
+    conditions = None
+
+    if "image_url" in kwargs:
+        image_url = kwargs["image_url"]
+
+        image = load_image(image_url)
+
+        video = load_video(
+            export_to_video([image])
+        )  # compress the image using video compression as the model was trained on videos
+        condition1 = LTXVideoCondition(video=video, frame_index=0)
+
+        conditions = [condition1]
+
+        del kwargs["image_url"]
+
+    generator = None
+
+    if "seed" in kwargs:
+        seed = kwargs["seed"]
+        generator = torch.Generator().manual_seed(seed)
+
+        del kwargs["seed"]
+
     updated_kwargs = {
         **dict(
+            conditions=conditions,
             prompt=prompt,
-            num_frames=24,
-            num_inference_steps=30,
+            num_frames=96 + 1,
+            num_inference_steps=50,
             decode_timestep=0.03,
             decode_noise_scale=0.025,
-            width=768,
-            height=512,
-            **kwargs,
+            width=704,
+            height=480,
+            guidance_scale=3,
+            generator=generator,
         )
     }
+
+    for key, value in kwargs.items():
+        updated_kwargs[key] = value
 
     # Run pipeline
     output = pipeline(**updated_kwargs)
 
     video = output.frames[0]
+
+    export_to_video(video, f"{WORKING_DIR}/output.mp4", fps=24)
 
     # Return wrapped result
     video_result = VideoResult(np_frames=video)
