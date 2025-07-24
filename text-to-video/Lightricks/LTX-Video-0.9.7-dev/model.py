@@ -10,7 +10,13 @@ def model_run(prompt: str, negative_prompt: str, params: dict):
 
     required imports: transformers
     """
-    return pipe(prompt, negative_prompt=negative_prompt, **params).frames
+
+    kwargs = dict(**params)
+
+    if negative_prompt:
+        kwargs["negative_prompt"] = negative_prompt
+
+    return pipe(prompt, **kwargs).frames
 
 
 def model_eject():
