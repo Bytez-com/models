@@ -88,7 +88,8 @@ def pipe(prompt: str, **kwargs):
         **dict(
             conditions=conditions,
             prompt=prompt,
-            num_frames=96 + 1,
+            negative_prompt="worst quality, inconsistent motion, blurry, jittery, distorted",
+            num_frames=16,
             num_inference_steps=50,
             decode_timestep=0.03,
             decode_noise_scale=0.025,
