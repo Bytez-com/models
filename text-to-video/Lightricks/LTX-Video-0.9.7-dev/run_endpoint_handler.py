@@ -18,7 +18,7 @@ def run_endpoint_handler(request):
         video_frames = model_run(prompt, negative_prompt, params)
         video_frames = video_frames.squeeze()
 
-        export_to_video(video_frames, output_video_path=tmp_file_path)
+        export_to_video(video_frames, output_video_path=tmp_file_path, fps=24)
 
         # Read the video file and encode it as base64
         with open(tmp_file_path, "rb") as video_file:
