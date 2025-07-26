@@ -6,10 +6,18 @@ from dataclasses import dataclass
 from pathlib import Path
 import traceback
 from transformers import PretrainedConfig
-from environment import TASK, MODEL_ID, DEVICE, MODEL_LOADING_KWARGS
+from environment import (
+    TASK,
+    MODEL_ID,
+    DEVICE,
+    MODEL_LOADING_KWARGS,
+    LOAD_WITH_VLLM,
+    VLLM_KWARGS,
+)
 from architecture_registry_module.classes.model_entity import (
     ModelEntity,
 )
+from vllm_loader import load_model_with_vllm
 
 
 WORKING_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -144,6 +152,14 @@ class Registry:
         raise collected_exception
 
 
-model_entity = Registry.get_model_entity()
+if LOAD_WITH_VLLM:
+    pipe = load_model_with_vllm(
+        model_id=MODEL_ID,
+        port=8123,
+        torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
+        vllm_kwargs=VLLM_KWARGS,
+    )
 
-pipe = model_entity
+else:
+    model_entity = Registry.get_model_entity()
+    pipe = model_entity

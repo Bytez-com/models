@@ -13,7 +13,6 @@
 // THIS IS *THE* COMMIT
 
 // 3b50e310103d7711f3a6324bba60f12edcdb4a3e
-
 const COMMIT = "3b50e310103d7711f3a6324bba60f12edcdb4a3e";
 
 const { higherOrderIterator } = require("../higherOrderIterator");
@@ -71,36 +70,31 @@ async function main() {
         const buffer = await fs.readFile(oldFilePath);
         var oldFileContents = buffer.toString();
 
-        try {
-          var args = pythonArgsToJs(oldFileContents);
-        } catch (error) {
-          // this is to handle anything that has the old model iterator
-          args = pythonArgsToJsOld(oldFileContents);
+        const fileToUpdatePath = oldFilePath.replace(
+          "modelsRepoOld",
+          "modelsRepo"
+        );
 
-          delete args.device_map;
+        const fileToUpdateBuffer = await fs.readFile(fileToUpdatePath);
+        const fileToUpdateContents = fileToUpdateBuffer.toString();
 
-          const keys = Object.keys(args);
+        const oldArgs = getArgs(oldFileContents);
 
-          if (keys.length === 0) {
-            continue;
-          }
+        const newArgs = getArgs(fileToUpdateContents);
 
-          for (const key of keys) {
-            ALL_KWARGS[key] = true;
-          }
-
-          args = { task: "TASK", model: "MODEL_ID", ...args };
+        if (JSON.stringify(oldArgs) !== JSON.stringify(newArgs)) {
+          const a = 2;
         }
 
-        if (!args.task) {
+        if (!oldArgs.task) {
           throw new Error("No task found, this should never happen");
         }
 
-        if (!args.model) {
+        if (!oldArgs.model) {
           throw new Error("No model found, this should never happen");
         }
 
-        const keys = Object.keys(args);
+        const keys = Object.keys(oldArgs);
 
         for (const key of keys) {
           ALL_KWARGS[key] = true;
@@ -108,17 +102,13 @@ async function main() {
 
         // has extra params
         if (keys.length > 2) {
-          const fileToUpdatePath = oldFilePath.replace(
-            "modelsRepoOld",
-            "modelsRepo"
-          );
+          var newModelLoader = updateParams(fileToUpdateContents, oldArgs);
 
-          const fileToUpdateBuffer = await fs.readFile(fileToUpdatePath);
-          const fileToUpdateContents = fileToUpdateBuffer.toString();
+          if (newModelLoader !== oldFileContents) {
+            const a = 2;
+          }
 
-          var newModelLoader = updateParams(fileToUpdateContents, args);
-
-          await fs.writeFile(fileToUpdatePath, newModelLoader, "utf8");
+          // await fs.writeFile(fileToUpdatePath, newModelLoader, "utf8");
         }
 
         if (keys.length < 1) {
@@ -145,6 +135,26 @@ if (require.main === module) {
     console.error(error);
     const a = 2;
   });
+}
+
+function getArgs(modelLoader) {
+  try {
+    var args = pythonArgsToJs(modelLoader);
+  } catch (error) {
+    // this is to handle anything that has the old model iterator
+    args = pythonArgsToJsOld(modelLoader);
+
+    delete args.device_map;
+
+    const keys = Object.keys(args);
+
+    for (const key of keys) {
+      ALL_KWARGS[key] = true;
+    }
+
+    args = { task: "TASK", model: "MODEL_ID", ...args };
+  }
+  return args;
 }
 
 function pythonArgsToJs(modelLoader) {
