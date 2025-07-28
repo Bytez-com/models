@@ -46,12 +46,12 @@ const tasksToUpdate = [
 ];
 
 const filesToUpdate = [
-  "environment.py",
-  "model_loader.py",
+  // "environment.py",
+  // "model_loader.py",
   // "streamer.py"
   // "utils.py",
-  "vllm_loader.py"
-  // "vllm_server.py"
+  // "vllm_loader.py"
+  "vllm_server.py"
   // "vllm_mocks.py"
 ];
 
