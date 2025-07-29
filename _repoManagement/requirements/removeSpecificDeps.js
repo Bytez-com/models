@@ -3,68 +3,57 @@ const fs = require("fs").promises;
 const { higherOrderIterator } = require("../higherOrderIterator");
 const { requirementsAsSet } = require("./utils");
 
-const NON_DEFAULT_TORCH_DEPS = {
-  torchaudio: true,
-  torchvision: true
+const REMOVE_REQUIREMENTS = {
+  transformers: "transformers==4.44.0"
 };
 
 const tasksToUpdate = [
   // "summarization",
   // "translation",
-  // "text-generation",
+  "text-generation"
   // "text2text-generation",
   // "image-text-to-text",
   // "video-text-to-text",
   // "audio-text-to-text"
 
-  "visual-question-answering",
-  "document-question-answering",
-  "depth-estimation",
-  "image-classification",
-  "object-detection",
-  "image-segmentation",
-  "text-to-image",
-  "image-to-text",
-  "image-text-to-text",
-  "audio-text-to-text",
-  "video-text-to-text",
-  "unconditional-image-generation",
-  "video-classification",
-  "text-to-video",
-  "zero-shot-image-classification",
-  "mask-generation",
-  "zero-shot-object-detection",
-  "image-feature-extraction",
-  "text-classification",
-  "token-classification",
-  "question-answering",
-  "zero-shot-classification",
-  "translation",
-  "summarization",
-  "feature-extraction",
-  "text-generation",
-  "text2text-generation",
-  "fill-mask",
-  "sentence-similarity",
-  "text-to-speech",
-  "text-to-audio",
-  "automatic-speech-recognition",
-  "audio-classification"
+  // "visual-question-answering",
+  // "document-question-answering",
+  // "depth-estimation",
+  // "image-classification",
+  // "object-detection",
+  // "image-segmentation",
+  // "text-to-image",
+  // "image-to-text",
+  // "image-text-to-text",
+  // "audio-text-to-text",
+  // "video-text-to-text",
+  // "unconditional-image-generation",
+  // "video-classification",
+  // "text-to-video",
+  // "zero-shot-image-classification",
+  // "mask-generation",
+  // "zero-shot-object-detection",
+  // "image-feature-extraction",
+  // "text-classification",
+  // "token-classification",
+  // "question-answering",
+  // "zero-shot-classification",
+  // "translation",
+  // "summarization",
+  // "feature-extraction",
+  // "text-generation",
+  // "text2text-generation",
+  // "fill-mask",
+  // "sentence-similarity",
+  // "text-to-speech",
+  // "text-to-audio",
+  // "automatic-speech-recognition",
+  // "audio-classification"
 ];
 
 const TORCH_VERSIONS = {};
 
-const ALL_TORCH_VERSIONS = {};
-
-const AFFECTED_TASKS = {};
-
 async function main() {
-  const instanceRequirementsPath = `${__dirname}/instanceRequirements.txt`;
-
-  const [instanceRequirements] = await requirementsAsSet(
-    instanceRequirementsPath
-  );
-
   const modelsUpdated = [];
 
   const modelsWithNoRequirements = [];
@@ -78,10 +67,7 @@ async function main() {
     task => `${pathToIterateOver}/${task}`
   );
 
-  const modelPathObjects = await higherOrderIterator(
-    pathsToIterateOver,
-    async () => undefined
-  );
+  const modelPathObjects = await higherOrderIterator(pathsToIterateOver);
 
   for (const [index, modelPathObject] of modelPathObjects.map((v, i) => [
     i,
@@ -112,29 +98,19 @@ async function main() {
     const [requirements, requirementsNameMap, requirementsString] =
       await requirementsAsSet(requirementsPath);
 
-    // get what's in the original requirements that's not in our instance's requirements
-    const difference = requirements.difference(instanceRequirements);
-
-    const differenceReqNames = [...difference.values()];
-
-    if (differenceReqNames.length === 0) {
-      modelsWithNoRequirements.push(modelPathObject);
+    if (requirementsString === "") {
       continue;
     }
 
     // we only care about what the original requirements have that our instance's requirements don't have
     const updatedRequirements = [];
 
-    for (const reqName of differenceReqNames) {
+    for (const reqName of [...requirements.values()]) {
       const fullReq = requirementsNameMap[reqName];
 
-      const hasTorchBasedReq = NON_DEFAULT_TORCH_DEPS[reqName];
+      const version = REMOVE_REQUIREMENTS[reqName];
 
-      if (hasTorchBasedReq) {
-        TORCH_VERSIONS[reqName] = true;
-
-        ALL_TORCH_VERSIONS[fullReq] = true;
-        AFFECTED_TASKS[task] = true;
+      if (version === fullReq) {
         continue;
       }
 
@@ -150,7 +126,7 @@ async function main() {
 
     console.log(`New requirements are:\n${newRequirementsString}`);
 
-    await fs.writeFile(requirementsPath, newRequirementsString);
+    // await fs.writeFile(requirementsPath, newRequirementsString);
 
     modelsUpdated.push(modelPathObject);
   }

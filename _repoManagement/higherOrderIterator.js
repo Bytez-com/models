@@ -2,8 +2,6 @@ const fs = require("fs").promises;
 
 const path = require("path");
 
-const [_rootDir] = path.resolve(`${__dirname}/../`).split("/").slice(-1);
-
 async function higherOrderIterator(
   pathsToIterateOver,
   callback = async (index, modelPathObject, modelPathObjects) => undefined,
@@ -11,7 +9,7 @@ async function higherOrderIterator(
   rootDir
 ) {
   if (rootDir === undefined) {
-    rootDir = _rootDir;
+    rootDir = `${__dirname}/../`;
   }
 
   rootDir = path.resolve(rootDir);
