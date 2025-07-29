@@ -71,6 +71,7 @@ if TORCH_DTYPE:
 
 LOAD_WITH_VLLM = json.loads(os.environ.get("LOAD_WITH_VLLM", "false"))
 VLLM_KWARGS = json.loads(os.environ.get("VLLM_KWARGS", "{}"))
+VLLM_ENV_VARS = json.loads(os.environ.get("VLLM_ENV_VARS", "{}"))
 
 CONSTANTS_DICT = {
     "TASK": TASK,
@@ -96,6 +97,7 @@ CONSTANTS_DICT = {
             "PARALLEL_LOADING_WORKERS": PARALLEL_LOADING_WORKERS,
             "LOAD_WITH_VLLM": LOAD_WITH_VLLM,
             "VLLM_KWARGS": VLLM_KWARGS,
+            "VLLM_ENV_VARS": VLLM_ENV_VARS,
         }
         if DISABLE_ANALYTICS
         else {}
