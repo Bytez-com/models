@@ -265,7 +265,7 @@ class PipeVLLM:
 
 
 def load_model_with_vllm(
-    model_id: str, port: int, torch_dtype, vllm_kwargs: dict
+    model_id: str, port: int, torch_dtype, vllm_kwargs: dict, vllm_env_vars: dict
 ) -> PipeVLLM:
     print("Starting vLLM server...")
 
@@ -308,7 +308,7 @@ def load_model_with_vllm(
         else:
             args += [flag, str(value)]
 
-    env = os.environ.copy()
+    env = {**os.environ.copy(), **vllm_env_vars}
 
     process = subprocess.Popen(
         args,
