@@ -70,16 +70,18 @@ def try_loading():
 
 # if LOAD_WITH_VLLM and False:
 if LOAD_WITH_VLLM:
-    import os
+    # NOTE recomment if logs become overwhelming
+    # import os
 
     # disable the majority of vllm logs (very noisy)
-    os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
+    # os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
 
     # we defer loading on purpose, there are side effects that result in a slow down
     from vllm_loader import load_model_with_vllm
 
     pipe = load_model_with_vllm(
         model_id=MODEL_ID,
+        port=8123,
         torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
         vllm_kwargs=VLLM_KWARGS,
     )
