@@ -1,31 +1,60 @@
-import asyncio
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Coroutine
-
-# NOTE important, these make vLLM think it has EiB's worth of GPU memory
-import vllm_mocks
-import math
+from typing import List, Dict, Union
 from dataclasses import dataclass
-from vllm import SamplingParams
-from vllm.engine.arg_utils import AsyncEngineArgs
-from vllm.engine.async_llm_engine import AsyncLLMEngine
-from vllm.usage.usage_lib import UsageContext
+import json
+import math
+import os
+import subprocess
+import time
+import sys
+import threading
 
+import requests
+
+PYTHON_EXECUTABLE = sys.executable
+
+
+WORKING_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # NOTE we lie to vllm and tell it it has EiB's worth of VRAM
 # so this is semi arbitrary. However, internally vLLM says, you have 0.5EiB available, if it takes more than 0.5 EiB throw
 GPU_MEMORY_UTILIZATION = 0.5
 
+BYTEZ_TO_OPEN_AI_CONTENT_ITEM_MAP = {
+    "text": {
+        "type": "text",
+        "value_key": "text",
+        "inner_value_fn": lambda value: value,
+    },
+    "image": {
+        "type": "image_url",
+        "value_key": "url",
+        "inner_value_fn": lambda value: dict(url=value),
+    },
+    "audio": {
+        "type": "input_audio",
+        "value_key": "url",
+        "inner_value_fn": lambda value: dict(url=value),
+    },
+    "video": {
+        "type": "video_url",
+        "value_key": "url",
+        "inner_value_fn": lambda value: dict(url=value),
+    },
+    "document": None,
+    "file": None,
+}
+
 
 @dataclass
 class PipeVLLM:
-    engine: AsyncLLMEngine
+    model_id: str
+    port: int
 
-    def __call__(self, text, **kwargs):
-
-        result = run_coroutine_sync(self.generate(text, **kwargs), timeout=60 * 10)
-
+    def __call__(self, *args, **kwargs):
+        # note, this is to handle MM models, which take in images/audio/video as the second arg when pipe() is called
+        # because everything is contained in the messages chain at args[0], we can safely ignore the second arg
+        request_input = args[0]
+        result = self.generate(request_input, **kwargs)
         return result
 
     def adapt_hf_to_vllm_kwargs(self, **kwargs) -> dict:
@@ -75,51 +104,171 @@ class PipeVLLM:
 
         return new_kwargs
 
-    async def generate(self, prompt, **kwargs):
-        max_new_tokens = kwargs.get("max_new_tokens")
-
+    def generate(self, request_input, **kwargs):
         streamer = kwargs.get("streamer")
 
         if streamer:
             del kwargs["streamer"]
 
-        output_text = ""
-
         adapted_kwargs = self.adapt_hf_to_vllm_kwargs(**kwargs)
 
-        stream = self.engine.generate(
-            request_id="fake_req_id",
-            prompt=prompt,
-            sampling_params=SamplingParams(**adapted_kwargs),
+        endpoint = ""
+
+        is_string_input = isinstance(request_input, str)
+
+        if is_string_input:
+            adapted_kwargs["prompt"] = request_input
+            endpoint = "/v1/completions"
+        else:
+            adapted_messages = self.adapt_bytez_input_to_openai_input(request_input)
+            adapted_kwargs["messages"] = adapted_messages
+            endpoint = "/v1/chat/completions"
+
+        response = requests.post(
+            f"http://localhost:{self.port}{endpoint}",
+            headers={"Content-Type": "application/json"},
+            json={
+                "model": self.model_id,
+                "stream": True,
+                **adapted_kwargs,
+            },
+            # we always stream because we get the same result back
+            # NOTE there may be performance downsides to this, albeit minor
+            stream=True,
         )
 
-        new_tokens_count = 0
+        if not response.ok:
+            error_obj = response.json()
+            error_type = error_obj["type"]
+            message = error_obj["message"]
+            raise Exception(f"{error_type}: {message}")
 
-        async for out in stream:
-            for output in out.outputs:
-                text = output.text
-
-                diff = text[len(output_text) :]
-                output_text = text
-
-                if streamer:
-                    streamer.put(diff)
-
-                # NOTE this should always be length 1, the only exception would be
-                # if you are using batched output or have some sort of custom multi-token streaming setup
-                new_tokens_count += len(output.token_ids)
-
-                if max_new_tokens and new_tokens_count >= max_new_tokens:
-                    await stream.aclose()
+        output_text = ""
+        for line in response.iter_lines(decode_unicode=True):
+            if line:
+                if line.strip() == "data: [DONE]":
                     break
+                if line.startswith("data: "):
+                    payload = json.loads(line[len("data: ") :])
+
+                    if is_string_input:
+                        delta = payload["choices"][0]["text"]
+
+                    else:
+                        delta = payload["choices"][0]["delta"].get("content", "")
+
+                    output_text += delta
+
+                    if streamer:
+                        streamer.put(delta)
 
         if streamer:
             streamer.end()
 
-        return [dict(generated_text=f"{prompt}{output_text}")]
+        if is_string_input:
+            return [dict(generated_text=f"{request_input}{output_text}")]
+
+        messages: list = request_input
+
+        return [
+            dict(
+                generated_text=[
+                    #
+                    *messages,
+                    dict(role="assistant", content=output_text),
+                ]
+            )
+        ]
+
+    def adapt_bytez_input_to_openai_input(self, messages: List[str]):
+        new_messages = []
+
+        # always convert to lists of dicts for content for simplicity
+        messages = self._adapt_string_only_content_to_lists(messages)
+
+        for message in messages:
+            role = message["role"]
+            content: list = message["content"]
+
+            new_content = []
+
+            for content_item in content:
+                type: Union[str, None] = content_item.get("type")
+
+                if not type:
+                    raise Exception("Prop `type` is not a string")
+
+                content_item_map = BYTEZ_TO_OPEN_AI_CONTENT_ITEM_MAP[type]
+
+                if not content_item_map:
+                    raise Exception(f"Prop `{type}` is not supported")
+
+                new_type = content_item_map["type"]
+
+                value_key = content_item_map["value_key"]
+                inner_value_fn = content_item_map["inner_value_fn"]
+
+                value: Union[str, None] = content_item.get(value_key)
+
+                if not value:
+                    raise Exception(f"Prop `{value_key}` is not a string")
+
+                formatted_value = inner_value_fn(value)
+
+                new_content.append({"type": new_type, new_type: formatted_value})
+
+            new_messages.append({"role": role, "content": new_content})
+
+        return new_messages
+
+    # "content": "The cat ran so fast"
+    # becomes
+    # "content": [{"type": "text", "text": "The cat ran so fast"}]
+    def _adapt_string_only_content_to_lists(self, messages: List[Dict]):
+        new_messages = []
+
+        for message in messages:
+
+            role = message.get("role")
+            content = message.get("content")
+
+            new_content = []
+
+            if isinstance(content, str):
+                new_content.append({"type": "text", "text": content})
+
+            elif isinstance(content, dict):
+                new_content.append(content)
+
+            elif isinstance(content, list):
+
+                new_content_items = []
+                for content_item in content:
+                    if isinstance(content_item, str):
+                        new_content_items.append({"type": "text", "text": content_item})
+                    elif isinstance(content_item, dict):
+                        new_content_items.append(content_item)
+                    else:
+                        raise Exception(
+                            "`content` can only contain strings or bytez content dicts"
+                        )
+
+                new_content += new_content_items
+            else:
+                raise Exception(
+                    "`content` can only contain strings or bytez content dicts"
+                )
+
+            new_messages.append({"role": role, "content": new_content})
+
+        return new_messages
 
 
-def load_model_with_vllm(model_id: str, torch_dtype, vllm_kwargs: dict) -> PipeVLLM:
+def load_model_with_vllm(
+    model_id: str, port: int, torch_dtype, vllm_kwargs: dict
+) -> PipeVLLM:
+    print("Starting vLLM server...")
+
     max_model_len = vllm_kwargs.get("max_model_len", 4096)
     block_size = vllm_kwargs.get("block_size", 16)
 
@@ -130,9 +279,10 @@ def load_model_with_vllm(model_id: str, torch_dtype, vllm_kwargs: dict) -> PipeV
     # which is presumably used for swapping or something to that effect. There may also be a bad conditional statement in their code
     num_blocks = math.ceil(max_model_len / block_size) + 1
 
-    kwargs = {
+    args_dict = {
         **dict(
             model=model_id,
+            port=port,
             dtype=torch_dtype if torch_dtype else "auto",
             max_model_len=max_model_len,
             gpu_memory_utilization=GPU_MEMORY_UTILIZATION,
@@ -144,42 +294,56 @@ def load_model_with_vllm(model_id: str, torch_dtype, vllm_kwargs: dict) -> PipeV
         **vllm_kwargs,
     }
 
-    print("Loading vLLM...")
+    # using PYTHON_EXECUTABLE allows the same version of python that launched this script to run the vLLM server
+    # important with conda/venv, dockerfile already has deps installed, this provides flexibility while developing outside of the docker context
+    args = [PYTHON_EXECUTABLE, f"{WORKING_DIR}/vllm_server.py"]
+    if torch_dtype:
+        args += ["--dtype", str(torch_dtype)]
 
-    engine_args = AsyncEngineArgs(
-        **kwargs,
-    )
-
-    engine = AsyncLLMEngine.from_engine_args(
-        engine_args, usage_context=UsageContext.ENGINE_CONTEXT
-    )
-
-    print("vLLM loaded")
-
-    return PipeVLLM(engine=engine)
-
-
-# this allows us to run async functions in sync code
-def run_coroutine_sync(coroutine: Coroutine[Any, Any, Any], timeout: float = 30):
-    def run_in_new_loop():
-        new_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(new_loop)
-        try:
-            return new_loop.run_until_complete(coroutine)
-        finally:
-            new_loop.close()
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coroutine)
-
-    if threading.current_thread() is threading.main_thread():
-        if not loop.is_running():
-            return loop.run_until_complete(coroutine)
+    for key, value in args_dict.items():
+        flag = f"--{key.replace('_', '-')}"
+        if isinstance(value, bool):
+            if value:
+                args.append(flag)
         else:
-            with ThreadPoolExecutor() as pool:
-                future = pool.submit(run_in_new_loop)
-                return future.result(timeout=timeout)
-    else:
-        return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
+            args += [flag, str(value)]
+
+    env = os.environ.copy()
+
+    process = subprocess.Popen(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        start_new_session=True,
+        env=env,
+    )
+
+    def stream_logs(proc):
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+
+    threading.Thread(target=stream_logs, args=(process,), daemon=True).start()
+
+    # Optional: wait for the server to come up
+    timeout = 60 * 10
+    start = time.time()
+    while True:
+        try:
+            import requests
+
+            response = requests.get(f"http://localhost:{port}/health", timeout=2)
+            if response.ok:
+                break
+        except Exception:
+            pass
+
+        if time.time() - start > timeout:
+            process.terminate()
+            raise TimeoutError("vLLM server failed to start in time.")
+
+        time.sleep(1)
+
+    print("vLLM server started.")
+
+    return PipeVLLM(model_id=model_id, port=port)
