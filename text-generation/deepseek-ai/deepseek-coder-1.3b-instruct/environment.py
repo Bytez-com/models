@@ -69,8 +69,8 @@ TORCH_DTYPE = MODEL_LOADING_KWARGS.get("torch_dtype")
 if TORCH_DTYPE:
     MODEL_LOADING_KWARGS["torch_dtype"] = getattr(torch, TORCH_DTYPE)
 
-LOAD_WITH_VLLM = json.loads(os.environ.get("LOAD_WITH_VLLM", "false"))
-VLLM_KWARGS = json.loads(os.environ.get("VLLM_KWARGS", "{}"))
+LOAD_WITH_VLLM = json.loads(os.environ.get("LOAD_WITH_VLLM", "true"))
+VLLM_KWARGS = json.loads(os.environ.get("VLLM_KWARGS", '{"max_model_len": 8192, "block_size": 16, "enforce_eager": true}'))
 
 CONSTANTS_DICT = {
     "TASK": TASK,
