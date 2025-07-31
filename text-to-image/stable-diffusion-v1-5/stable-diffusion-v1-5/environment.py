@@ -15,10 +15,10 @@ TASK = os.environ.get("TASK")
 MODEL_ID = os.environ.get("MODEL_ID")
 
 # used for the model loading tracker
-FILES_SIZE_GB = float(os.environ.get("FILES_SIZE_GB", "12345678"))
+FILES_SIZE_GB = 44.01
 
 # used for the model loading tracker
-MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "12345678"))
+MODEL_SIZE_GB = 6.01
 
 # used for the model loading tracker
 LOG_LOADING = bool(os.environ.get("LOG_LOADING", "false"))
@@ -30,7 +30,7 @@ DEVICE = os.environ.get("DEVICE", "cuda" if torch.cuda.is_available() else "cpu"
 PORT = os.environ.get("PORT", 8002)
 
 # prevents calls to analytics when in the testing pipeline, or via instances api
-DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "false"))
+DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "true"))
 
 # Code is being run from gunicorn and not the debugger (flask will not start up)
 START_FLASK_DEBUG_SERVER = json.loads(
@@ -97,7 +97,7 @@ CONSTANTS_DICT = {
             "LOAD_WITH_VLLM": LOAD_WITH_VLLM,
             "VLLM_KWARGS": VLLM_KWARGS,
         }
-        if DISABLE_ANALYTICS
+        if False
         else {}
     ),
 }
