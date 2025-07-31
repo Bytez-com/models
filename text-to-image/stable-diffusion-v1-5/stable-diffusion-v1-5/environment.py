@@ -15,7 +15,7 @@ TASK = os.environ.get("TASK")
 MODEL_ID = os.environ.get("MODEL_ID")
 
 # used for the model loading tracker
-FILES_SIZE_GB = 44.01
+FILES_SIZE_GB = 5.5
 
 # used for the model loading tracker
 MODEL_SIZE_GB = 6.01
