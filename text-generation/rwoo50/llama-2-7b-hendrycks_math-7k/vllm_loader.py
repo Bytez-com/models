@@ -1,3 +1,4 @@
+from typing import List, Dict, Union
 from dataclasses import dataclass
 import json
 import math
@@ -18,13 +19,41 @@ WORKING_DIR = os.path.dirname(os.path.realpath(__file__))
 # so this is semi arbitrary. However, internally vLLM says, you have 0.5EiB available, if it takes more than 0.5 EiB throw
 GPU_MEMORY_UTILIZATION = 0.5
 
+BYTEZ_TO_OPEN_AI_CONTENT_ITEM_MAP = {
+    "text": {
+        "type": "text",
+        "value_key": "text",
+        "inner_value_fn": lambda value: value,
+    },
+    "image": {
+        "type": "image_url",
+        "value_key": "url",
+        "inner_value_fn": lambda value: dict(url=value),
+    },
+    "audio": {
+        "type": "input_audio",
+        "value_key": "url",
+        "inner_value_fn": lambda value: dict(url=value),
+    },
+    "video": {
+        "type": "video_url",
+        "value_key": "url",
+        "inner_value_fn": lambda value: dict(url=value),
+    },
+    "document": None,
+    "file": None,
+}
+
 
 @dataclass
 class PipeVLLM:
     model_id: str
     port: int
 
-    def __call__(self, request_input, **kwargs):
+    def __call__(self, *args, **kwargs):
+        # note, this is to handle MM models, which take in images/audio/video as the second arg when pipe() is called
+        # because everything is contained in the messages chain at args[0], we can safely ignore the second arg
+        request_input = args[0]
         result = self.generate(request_input, **kwargs)
         return result
 
@@ -91,7 +120,8 @@ class PipeVLLM:
             adapted_kwargs["prompt"] = request_input
             endpoint = "/v1/completions"
         else:
-            adapted_kwargs["messages"] = request_input
+            adapted_messages = self.adapt_bytez_input_to_openai_input(request_input)
+            adapted_kwargs["messages"] = adapted_messages
             endpoint = "/v1/chat/completions"
 
         response = requests.post(
@@ -149,6 +179,89 @@ class PipeVLLM:
                 ]
             )
         ]
+
+    def adapt_bytez_input_to_openai_input(self, messages: List[str]):
+        new_messages = []
+
+        # always convert to lists of dicts for content for simplicity
+        messages = self._adapt_string_only_content_to_lists(messages)
+
+        for message in messages:
+            role = message["role"]
+            content: list = message["content"]
+
+            new_content = []
+
+            for content_item in content:
+                type: Union[str, None] = content_item.get("type")
+
+                if not type:
+                    raise Exception("Prop `type` is not a string")
+
+                content_item_map = BYTEZ_TO_OPEN_AI_CONTENT_ITEM_MAP[type]
+
+                if not content_item_map:
+                    raise Exception(f"Prop `{type}` is not supported")
+
+                new_type = content_item_map["type"]
+
+                value_key = content_item_map["value_key"]
+                inner_value_fn = content_item_map["inner_value_fn"]
+
+                value: Union[str, None] = content_item.get(value_key)
+
+                if not value:
+                    raise Exception(f"Prop `{value_key}` is not a string")
+
+                formatted_value = inner_value_fn(value)
+
+                new_content.append({"type": new_type, new_type: formatted_value})
+
+            new_messages.append({"role": role, "content": new_content})
+
+        return new_messages
+
+    # "content": "The cat ran so fast"
+    # becomes
+    # "content": [{"type": "text", "text": "The cat ran so fast"}]
+    def _adapt_string_only_content_to_lists(self, messages: List[Dict]):
+        new_messages = []
+
+        for message in messages:
+
+            role = message.get("role")
+            content = message.get("content")
+
+            new_content = []
+
+            if isinstance(content, str):
+                new_content.append({"type": "text", "text": content})
+
+            elif isinstance(content, dict):
+                new_content.append(content)
+
+            elif isinstance(content, list):
+
+                new_content_items = []
+                for content_item in content:
+                    if isinstance(content_item, str):
+                        new_content_items.append({"type": "text", "text": content_item})
+                    elif isinstance(content_item, dict):
+                        new_content_items.append(content_item)
+                    else:
+                        raise Exception(
+                            "`content` can only contain strings or bytez content dicts"
+                        )
+
+                new_content += new_content_items
+            else:
+                raise Exception(
+                    "`content` can only contain strings or bytez content dicts"
+                )
+
+            new_messages.append({"role": role, "content": new_content})
+
+        return new_messages
 
 
 def load_model_with_vllm(
