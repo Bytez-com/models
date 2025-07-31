@@ -321,7 +321,7 @@ class LoadingTracker:
         ):
             self.prev_dl_value = self.percent_progress_download.value
 
-            self.logger(f"Percent downloaded: {self.percent_progress_download.value}%")
+            # self.logger(f"Percent downloaded: {self.percent_progress_download.value}%")
 
     def log_percent_done_loaded(self):
         if (
@@ -330,6 +330,6 @@ class LoadingTracker:
         ):
             self.prev_load_value = self.percent_progress_load.value
 
-            self.logger(
-                f"Percent loaded into memory: {self.percent_progress_load.value}%"
-            )
+            # self.logger(
+            #     f"Percent loaded into memory: {self.percent_progress_load.value}%"
+            # )
