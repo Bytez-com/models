@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from optimum.pipelines import pipeline
+from transformers import pipeline
 from environment import (
     MODEL_ID,
     TASK,
@@ -7,6 +7,7 @@ from environment import (
     MODEL_LOADING_KWARGS,
     LOAD_WITH_VLLM,
     VLLM_KWARGS,
+    VLLM_ENV_VARS,
 )
 from validate_pipe import validate_pipe
 
@@ -29,12 +30,7 @@ DEFAULT_KWARGS = {
     ### params ###
     "task": TASK,
     "model": MODEL_ID,
-    "accelerator": "ort",
-    "model_kwargs": { "use_cache": False, "use_io_binding": False }
 }
-
-# ORT requires task be passed in as an arg
-del DEFAULT_KWARGS["task"]
 
 
 def try_loading():
@@ -62,7 +58,7 @@ def try_loading():
                 # set the kwargs to specifically have the loading method and the device
                 kwargs.setdefault(loading_method, device)
 
-                pipe = pipeline(TASK, **kwargs)
+                pipe = pipeline(**kwargs)
 
                 print(f"Loaded model via '{loading_method}' on device: ", device)
 
@@ -89,6 +85,7 @@ if LOAD_WITH_VLLM:
         port=8123,
         torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
         vllm_kwargs=VLLM_KWARGS,
+        vllm_env_vars=VLLM_ENV_VARS,
     )
 else:
     pipe = try_loading()

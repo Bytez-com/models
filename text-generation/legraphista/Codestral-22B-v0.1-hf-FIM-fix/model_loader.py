@@ -7,6 +7,7 @@ from environment import (
     MODEL_LOADING_KWARGS,
     LOAD_WITH_VLLM,
     VLLM_KWARGS,
+    VLLM_ENV_VARS,
 )
 from validate_pipe import validate_pipe
 
@@ -84,6 +85,7 @@ if LOAD_WITH_VLLM:
         port=8123,
         torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
         vllm_kwargs=VLLM_KWARGS,
+        vllm_env_vars=VLLM_ENV_VARS,
     )
 else:
     pipe = try_loading()
