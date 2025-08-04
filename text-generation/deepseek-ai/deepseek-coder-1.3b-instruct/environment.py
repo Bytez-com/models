@@ -15,10 +15,10 @@ TASK = os.environ.get("TASK")
 MODEL_ID = os.environ.get("MODEL_ID")
 
 # used for the model loading tracker
-FILES_SIZE_GB = 9.56
+FILES_SIZE_GB = float(os.environ.get("FILES_SIZE_GB", "12345678"))
 
 # used for the model loading tracker
-MODEL_SIZE_GB = 2.74
+MODEL_SIZE_GB = float(os.environ.get("MODEL_SIZE_GB", "12345678"))
 
 # used for the model loading tracker
 LOG_LOADING = bool(os.environ.get("LOG_LOADING", "false"))
@@ -30,7 +30,7 @@ DEVICE = os.environ.get("DEVICE", "cuda" if torch.cuda.is_available() else "cpu"
 PORT = os.environ.get("PORT", 8002)
 
 # prevents calls to analytics when in the testing pipeline, or via instances api
-DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "true"))
+DISABLE_ANALYTICS = json.loads(os.environ.get("DISABLE_ANALYTICS", "false"))
 
 # Code is being run from gunicorn and not the debugger (flask will not start up)
 START_FLASK_DEBUG_SERVER = json.loads(
@@ -69,8 +69,9 @@ TORCH_DTYPE = MODEL_LOADING_KWARGS.get("torch_dtype")
 if TORCH_DTYPE:
     MODEL_LOADING_KWARGS["torch_dtype"] = getattr(torch, TORCH_DTYPE)
 
-LOAD_WITH_VLLM = json.loads(os.environ.get("LOAD_WITH_VLLM", "true"))
-VLLM_KWARGS = json.loads(os.environ.get("VLLM_KWARGS", '{"max_model_len": 8192, "block_size": 16, "enforce_eager": true}'))
+LOAD_WITH_VLLM = json.loads(os.environ.get("LOAD_WITH_VLLM", "false"))
+VLLM_KWARGS = json.loads(os.environ.get("VLLM_KWARGS", "{}"))
+VLLM_ENV_VARS = json.loads(os.environ.get("VLLM_ENV_VARS", "{}"))
 
 CONSTANTS_DICT = {
     "TASK": TASK,
@@ -96,8 +97,9 @@ CONSTANTS_DICT = {
             "PARALLEL_LOADING_WORKERS": PARALLEL_LOADING_WORKERS,
             "LOAD_WITH_VLLM": LOAD_WITH_VLLM,
             "VLLM_KWARGS": VLLM_KWARGS,
+            "VLLM_ENV_VARS": VLLM_ENV_VARS,
         }
-        if False
+        if DISABLE_ANALYTICS
         else {}
     ),
 }

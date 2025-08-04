@@ -7,13 +7,23 @@ WORKING_DIR = os.path.dirname(os.path.realpath(__file__))
 OWNER = "Bytez-com"
 REPO = "models"
 BRANCH = "main"
+API_KEY = os.environ.get("GITHUB_API_KEY")
 TASK = os.environ.get("TASK")
 MODEL_ID = os.environ.get("MODEL_ID")
 USE_JSDELIVR = os.environ.get("USE_JSDELIVR", "false").lower() == "true"
 
+HEADERS = (
+    {
+        "Authorization": f"Bearer {API_KEY}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+    if API_KEY
+    else None
+)
+
 
 def make_request(url):
-    response = requests.get(url)
+    response = requests.get(url, headers=HEADERS)
     if not response.ok:
         raise Exception("Request failed")
     return response
