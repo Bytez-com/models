@@ -31,7 +31,7 @@ BYTEZ_TO_OPEN_AI_CONTENT_ITEM_MAP = {
         "inner_value_fn": lambda value: dict(url=value),
     },
     "audio": {
-        "type": "input_audio",
+        "type": "audio_url",
         "value_key": "url",
         "inner_value_fn": lambda value: dict(url=value),
     },
