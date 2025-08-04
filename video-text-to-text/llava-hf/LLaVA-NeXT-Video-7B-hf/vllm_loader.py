@@ -31,7 +31,7 @@ BYTEZ_TO_OPEN_AI_CONTENT_ITEM_MAP = {
         "inner_value_fn": lambda value: dict(url=value),
     },
     "audio": {
-        "type": "input_audio",
+        "type": "audio_url",
         "value_key": "url",
         "inner_value_fn": lambda value: dict(url=value),
     },
@@ -171,13 +171,8 @@ class PipeVLLM:
         messages: list = request_input
 
         return [
-            dict(
-                generated_text=[
-                    #
-                    *messages,
-                    dict(role="assistant", content=output_text),
-                ]
-            )
+            *messages,
+            dict(role="assistant", content=output_text),
         ]
 
     def adapt_bytez_input_to_openai_input(self, messages: List[str]):

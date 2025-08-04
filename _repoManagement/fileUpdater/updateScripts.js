@@ -5,11 +5,11 @@ const fs = require("fs").promises;
 const tasksToUpdate = [
   // "summarization",
   // "translation",
-  "text-generation"
+  // "text-generation"
   // "text2text-generation",
-  // "image-text-to-text",
-  // "video-text-to-text",
-  // "audio-text-to-text",
+  "image-text-to-text",
+  "video-text-to-text",
+  "audio-text-to-text"
   // "visual-question-answering",
   // "document-question-answering",
   // "depth-estimation",
