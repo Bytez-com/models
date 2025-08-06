@@ -2,18 +2,21 @@ import time
 import threading
 from model import model_run
 from model import pipe
-from streamer import SingleTokenStreamer
+from streamer import SingleTokenStreamer, SingleTokenStreamerVllm
 import numpy as np
+from environment import LOAD_WITH_VLLM
 
 
 def model_run_generator(*args, params: dict):
-    streamer: SingleTokenStreamer = pipe._forward_params.get("streamer")
 
-    streamer = SingleTokenStreamer(
+    if LOAD_WITH_VLLM:
+        streamer = SingleTokenStreamerVllm()
+    else:
+        streamer = SingleTokenStreamer(
             tokenizer=pipe.tokenizer, skip_prompt=True, skip_special_tokens=True
-    )
+        )
 
-    params['streamer'] = streamer
+    params["streamer"] = streamer
 
     def model_run_thread():
         try:
