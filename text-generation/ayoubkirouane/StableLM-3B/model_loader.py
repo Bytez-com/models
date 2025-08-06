@@ -30,6 +30,7 @@ DEFAULT_KWARGS = {
     ### params ###
     "task": TASK,
     "model": MODEL_ID,
+    "trust_remote_code": True
 }
 
 
