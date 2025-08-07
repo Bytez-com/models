@@ -55,12 +55,12 @@ class SingleTokenStreamer(BaseStreamer):
             self.all_buffer = list(value_as_list)
             self.next_tokens_are_prompt = False
 
-        else:
-            token = value_as_list[0]
-            self.token_buffer.append(token)
-            self.all_buffer.append(token)
+            # we skip to the next iteration, our diff is useless in this case
+            return
 
-        # detect if a space should be included, we use the previous value and if there's a space after it's length, then the current token gets text prepended
+        token = value_as_list[0]
+        self.token_buffer.append(token)
+        self.all_buffer.append(token)
 
         text: str = self.tokenizer.decode(self.token_buffer, **self.decode_kwargs)
 
