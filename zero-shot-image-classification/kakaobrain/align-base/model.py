@@ -10,7 +10,7 @@ def model_run(image: list, candidate_labels: list, params: dict):
 
     required imports: transformers
     """
-    return pipe(images=image, candidate_labels=candidate_labels, **params)
+    return pipe(image, candidate_labels=candidate_labels, **params)
 
 
 def model_eject():

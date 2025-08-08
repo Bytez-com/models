@@ -5,7 +5,7 @@ const fs = require("fs").promises;
 const tasksToUpdate = [
   // "summarization",
   // "translation",
-  "text-generation"
+  // "text-generation"
   // "text2text-generation",
   // "image-text-to-text",
   // "video-text-to-text",
@@ -24,7 +24,7 @@ const tasksToUpdate = [
   // "unconditional-image-generation",
   // "video-classification",
   // "text-to-video",
-  // "zero-shot-image-classification",
+  "zero-shot-image-classification"
   // "mask-generation",
   // "zero-shot-object-detection",
   // "image-feature-extraction",
@@ -46,12 +46,13 @@ const tasksToUpdate = [
 ];
 
 const filesToUpdate = [
+  "model.py"
   // "download_bytez_repo.py",
   // "environment.py"
-  "model_loader.py",
+  // "model_loader.py",
   // // "streamer.py"
   // // "utils.py",
-  "vllm_loader.py"
+  // "vllm_loader.py"
   // "vllm_server.py"
   // "vllm_mocks.py"
 ];
