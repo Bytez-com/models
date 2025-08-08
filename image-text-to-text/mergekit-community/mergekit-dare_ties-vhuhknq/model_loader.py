@@ -153,15 +153,22 @@ class Registry:
         raise collected_exception
 
 
-if LOAD_WITH_VLLM:
-    pipe = load_model_with_vllm(
-        model_id=MODEL_ID,
-        port=8123,
-        torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
-        vllm_kwargs=VLLM_KWARGS,
-        vllm_env_vars=VLLM_ENV_VARS,
-    )
+vllm_failed = False
 
-else:
+if LOAD_WITH_VLLM:
+    try:
+        pipe = load_model_with_vllm(
+            model_id=MODEL_ID,
+            port=8123,
+            torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
+            vllm_kwargs=VLLM_KWARGS,
+            vllm_env_vars=VLLM_ENV_VARS,
+        )
+    except Exception as exception:
+        print(exception)
+        print("vLLM failed to load, falling back to default loading method")
+        vllm_failed = True
+
+if not LOAD_WITH_VLLM or vllm_failed:
     model_entity = Registry.get_model_entity()
     pipe = model_entity
