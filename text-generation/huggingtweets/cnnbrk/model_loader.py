@@ -10,6 +10,7 @@ from environment import (
     VLLM_ENV_VARS,
 )
 from validate_pipe import validate_pipe
+from vllm_loader import load_model_with_vllm
 
 
 # construct as a set to dedupe, then turn into list
@@ -69,25 +70,23 @@ def try_loading():
     raise collected_exception
 
 
-# if LOAD_WITH_VLLM and False:
+vllm_failed = False
+
 if LOAD_WITH_VLLM:
-    # NOTE recomment if logs become overwhelming
-    # import os
+    try:
+        pipe = load_model_with_vllm(
+            model_id=MODEL_ID,
+            port=8123,
+            torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
+            vllm_kwargs=VLLM_KWARGS,
+            vllm_env_vars=VLLM_ENV_VARS,
+        )
+    except Exception as exception:
+        print(exception)
+        print("vLLM failed to load, falling back to default loading method")
+        vllm_failed = True
 
-    # disable the majority of vllm logs (very noisy)
-    # os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
-
-    # we defer loading on purpose, there are side effects that result in a slow down
-    from vllm_loader import load_model_with_vllm
-
-    pipe = load_model_with_vllm(
-        model_id=MODEL_ID,
-        port=8123,
-        torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
-        vllm_kwargs=VLLM_KWARGS,
-        vllm_env_vars=VLLM_ENV_VARS,
-    )
-else:
+if not LOAD_WITH_VLLM or vllm_failed:
     pipe = try_loading()
     # this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
     validate_pipe(pipe)
