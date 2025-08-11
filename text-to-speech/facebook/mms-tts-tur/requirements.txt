@@ -1,4 +1,4 @@
+# NOTE this is required to prevent a tensors found on multiple devices error for this model
 pyarrow-hotfix==0.6
 scipy==1.14.1
-# NOTE this is required to prevent a tensors found on multiple devices error for this model
 transformers==4.49.0

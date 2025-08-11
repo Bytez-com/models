@@ -13,13 +13,18 @@ async function requirementsAsSet(path) {
 
   const nameToFullLineMap = {};
 
-  const array = string.split("\n").map(item => {
-    const [reqName] = item.split("==");
+  const array = string
+    .split("\n")
+    .map(item => {
+      const [reqName] = item.split("==");
 
-    nameToFullLineMap[reqName] = item;
+      if (reqName) {
+        nameToFullLineMap[reqName] = item;
+      }
 
-    return reqName;
-  });
+      return reqName;
+    })
+    .filter(Boolean);
 
   const set = new Set(array);
 
