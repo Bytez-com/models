@@ -1,7 +1,16 @@
 from collections import OrderedDict
 from transformers import pipeline
-from environment import MODEL_ID, TASK, DEVICE, MODEL_LOADING_KWARGS
+from environment import (
+    MODEL_ID,
+    TASK,
+    DEVICE,
+    MODEL_LOADING_KWARGS,
+    LOAD_WITH_VLLM,
+    VLLM_KWARGS,
+    VLLM_ENV_VARS,
+)
 from validate_pipe import validate_pipe
+from vllm_loader import load_model_with_vllm
 
 
 # construct as a set to dedupe, then turn into list
@@ -26,6 +35,7 @@ DEFAULT_KWARGS = {
 
 
 def try_loading():
+
     # we'll try loading on "device_map" first, then "device". This is to ensure a model at least runs on the CPU if
     # it fails to load on cuda on an instance
     loading_methods = [
@@ -60,10 +70,27 @@ def try_loading():
     raise collected_exception
 
 
-pipe = try_loading()
+vllm_failed = False
 
-# this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
-validate_pipe(pipe)
+if LOAD_WITH_VLLM:
+    try:
+        pipe = load_model_with_vllm(
+            model_id=MODEL_ID,
+            port=8123,
+            torch_dtype=MODEL_LOADING_KWARGS.get("torch_dtype"),
+            vllm_kwargs=VLLM_KWARGS,
+            vllm_env_vars=VLLM_ENV_VARS,
+        )
+    except Exception as exception:
+        print(exception)
+        print("vLLM failed to load, falling back to default loading method")
+        vllm_failed = True
+
+if not LOAD_WITH_VLLM or vllm_failed:
+    pipe = try_loading()
+    # this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
+    validate_pipe(pipe)
+
 
 print("Model loaded")
 
