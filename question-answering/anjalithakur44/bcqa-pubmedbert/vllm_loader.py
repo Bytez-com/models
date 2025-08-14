@@ -31,7 +31,7 @@ BYTEZ_TO_OPEN_AI_CONTENT_ITEM_MAP = {
         "inner_value_fn": lambda value: dict(url=value),
     },
     "audio": {
-        "type": "input_audio",
+        "type": "audio_url",
         "value_key": "url",
         "inner_value_fn": lambda value: dict(url=value),
     },
@@ -171,13 +171,8 @@ class PipeVLLM:
         messages: list = request_input
 
         return [
-            dict(
-                generated_text=[
-                    #
-                    *messages,
-                    dict(role="assistant", content=output_text),
-                ]
-            )
+            *messages,
+            dict(role="assistant", content=output_text),
         ]
 
     def adapt_bytez_input_to_openai_input(self, messages: List[str]):
@@ -265,7 +260,7 @@ class PipeVLLM:
 
 
 def load_model_with_vllm(
-    model_id: str, port: int, torch_dtype, vllm_kwargs: dict
+    model_id: str, port: int, torch_dtype, vllm_kwargs: dict, vllm_env_vars: dict
 ) -> PipeVLLM:
     print("Starting vLLM server...")
 
@@ -308,7 +303,7 @@ def load_model_with_vllm(
         else:
             args += [flag, str(value)]
 
-    env = os.environ.copy()
+    env = {**os.environ.copy(), **vllm_env_vars}
 
     process = subprocess.Popen(
         args,
@@ -325,13 +320,22 @@ def load_model_with_vllm(
 
     threading.Thread(target=stream_logs, args=(process,), daemon=True).start()
 
-    # Optional: wait for the server to come up
     timeout = 60 * 10
     start = time.time()
     while True:
-        try:
-            import requests
+        # Check if process has exited
+        retcode = process.poll()
 
+        # NOTE vLLM currently always prints this out when it closes.
+        # [rank0]:[W808 15:33:11.322491871 ProcessGroupNCCL.cpp:1476] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+        if retcode is not None:  # Process ended
+            # Read any remaining logs
+            leftover_logs = process.stdout.read()
+            if leftover_logs:
+                print(leftover_logs, end="", flush=True)
+            raise RuntimeError(f"vLLM server process exited with code {retcode}")
+
+        try:
             response = requests.get(f"http://localhost:{port}/health", timeout=2)
             if response.ok:
                 break
