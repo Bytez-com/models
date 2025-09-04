@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -11,6 +12,8 @@ API_KEY = os.environ.get("GITHUB_API_KEY")
 TASK = os.environ.get("TASK")
 MODEL_ID = os.environ.get("MODEL_ID")
 USE_JSDELIVR = os.environ.get("USE_JSDELIVR", "false").lower() == "true"
+REPO_DOWNLOAD_ATTEMPTS = int(os.environ.get("REPO_DOWNLOAD_ATTEMPTS", "5"))
+REPO_DOWNLOAD_FAIL_SLEEP_S = int(os.environ.get("REPO_DOWNLOAD_FAIL_SLEEP_S", "10"))
 
 HEADERS = (
     {
@@ -23,10 +26,19 @@ HEADERS = (
 
 
 def make_request(url):
-    response = requests.get(url, headers=HEADERS)
-    if not response.ok:
-        raise Exception("Request failed")
-    return response
+    for i in range(0, REPO_DOWNLOAD_ATTEMPTS):
+        response = requests.get(url, headers=HEADERS)
+        if not response.ok:
+            print(
+                f"Github repo rate limited (attempt {i + 1}/{REPO_DOWNLOAD_ATTEMPTS}), sleeping for {REPO_DOWNLOAD_FAIL_SLEEP_S} seconds ({url})"
+            )
+            time.sleep(5)
+            continue
+        return response
+
+    raise Exception(
+        f"Unable to download repo contents, download for: {url} failed after {REPO_DOWNLOAD_ATTEMPTS} attempts"
+    )
 
 
 def get_model_files():

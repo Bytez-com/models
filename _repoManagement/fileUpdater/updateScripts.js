@@ -3,56 +3,56 @@ const { higherOrderIterator } = require("../higherOrderIterator");
 const fs = require("fs").promises;
 
 const tasksToUpdate = [
-  // "summarization",
-  // "translation",
+  "summarization",
+  "translation",
   "text-generation",
-  // "text2text-generation",
-  // "image-text-to-text",
-  // "video-text-to-text",
-  // "audio-text-to-text"
-  // "visual-question-answering",
-  // "document-question-answering",
-  // "depth-estimation",
-  // "image-classification",
-  // "object-detection",
-  // "image-segmentation",
-  // "text-to-image",
-  // "image-to-text",
+  "text2text-generation",
+  "image-text-to-text",
+  "video-text-to-text",
+  "audio-text-to-text",
+  "visual-question-answering",
+  "document-question-answering",
+  "depth-estimation",
+  "image-classification",
+  "object-detection",
+  "image-segmentation",
+  "text-to-image",
+  "image-to-text",
   "image-text-to-text",
   "audio-text-to-text",
-  "video-text-to-text"
-  // "unconditional-image-generation",
-  // "video-classification",
-  // "text-to-video",
-  // "zero-shot-image-classification"
-  // "mask-generation",
-  // "zero-shot-object-detection",
-  // "image-feature-extraction",
-  // "text-classification",
-  // "token-classification",
-  // "question-answering",
-  // "zero-shot-classification",
-  // "translation",
-  // "summarization",
-  // "feature-extraction",
-  // "text-generation",
-  // "text2text-generation",
-  // "fill-mask",
-  // "sentence-similarity",
-  // "text-to-speech",
-  // "text-to-audio",
-  // "automatic-speech-recognition",
-  // "audio-classification"
+  "video-text-to-text",
+  "unconditional-image-generation",
+  "video-classification",
+  "text-to-video",
+  "zero-shot-image-classification",
+  "mask-generation",
+  "zero-shot-object-detection",
+  "image-feature-extraction",
+  "text-classification",
+  "token-classification",
+  "question-answering",
+  "zero-shot-classification",
+  "translation",
+  "summarization",
+  "feature-extraction",
+  "text-generation",
+  "text2text-generation",
+  "fill-mask",
+  "sentence-similarity",
+  "text-to-speech",
+  "text-to-audio",
+  "automatic-speech-recognition",
+  "audio-classification"
 ];
 
 const filesToUpdate = [
   // "model.py"
-  // "download_bytez_repo.py",
+  "download_bytez_repo.py"
   // "environment.py"
   // "model_loader.py",
   // // "streamer.py"
   // // "utils.py",
-  "vllm_loader.py"
+  // "vllm_loader.py"
   // "vllm_server.py"
   // "vllm_mocks.py"
 ];
@@ -74,7 +74,7 @@ async function main() {
   );
 
   for (const nameOfFileToUpdate of filesToUpdate) {
-    const newFilePath = `${__dirname}/../../../templates/default/${nameOfFileToUpdate}`;
+    const newFilePath = `${__dirname}/../../../../bytez-api-utilities/jobRunner/templates/default/${nameOfFileToUpdate}`;
 
     const newFileBuffer = await fs.readFile(newFilePath);
 
