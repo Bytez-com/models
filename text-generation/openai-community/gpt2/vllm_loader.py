@@ -171,12 +171,8 @@ class PipeVLLM:
         messages: list = request_input
 
         return [
-            dict(
-                generated_text=[
-                    *messages,
-                    dict(role="assistant", content=output_text),
-                ]
-            )
+            *messages,
+            dict(role="assistant", content=output_text),
         ]
 
     def adapt_bytez_input_to_openai_input(self, messages: List[str]):
