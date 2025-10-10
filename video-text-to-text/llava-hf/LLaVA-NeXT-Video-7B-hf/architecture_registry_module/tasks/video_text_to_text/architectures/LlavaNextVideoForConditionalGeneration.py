@@ -38,13 +38,16 @@ class LlavaNextVideoForConditionalGeneration(VideoTextToTextModelEntity):
             adapted_messages, add_generation_prompt=True
         )
 
-        output = self.generate(text, videos, **kwargs)
+        output = self.generate(text, videos, **kwargs)[0]
 
         output_messages = messages + [
-            {"role": "assistant", "content": [{"type": "text", "text": output}]}
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": output["generated_text"]}],
+            }
         ]
 
-        return output_messages
+        return [{**output, "generated_text": output_messages}]
 
     def generate(self, text, videos, **kwargs):
         if videos is None:
@@ -71,15 +74,21 @@ class LlavaNextVideoForConditionalGeneration(VideoTextToTextModelEntity):
             text=text, videos=videos, padding=True, return_tensors="pt"
         ).to(self.model.device)
 
-        output = self.model.generate(**inputs_video, do_sample=False, **kwargs)
+        generated_ids = self.model.generate(**inputs_video, do_sample=False, **kwargs)
 
-        new_tokens_len = len(output[0]) - len(inputs_video.input_ids[0])
+        new_tokens_len = len(generated_ids[0]) - len(inputs_video.input_ids[0])
 
-        output_tokens = output[0][-new_tokens_len:]
+        output_tokens = generated_ids[0][-new_tokens_len:]
 
         formatted_text = self.processor.decode(output_tokens, skip_special_tokens=True)
 
-        return formatted_text
+        return [
+            dict(
+                generated_text=formatted_text,
+                sequence=getattr(generated_ids, "sequences", [[]])[0],
+                scores=getattr(generated_ids, "scores", None),
+            )
+        ]
 
 
 # universal stub used by the model loader

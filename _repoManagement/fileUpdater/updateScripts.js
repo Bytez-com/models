@@ -1,53 +1,60 @@
 const { higherOrderIterator } = require("../higherOrderIterator");
 
 const fs = require("fs").promises;
+const pathModule = require("path");
 
 const tasksToUpdate = [
-  "summarization",
-  "translation",
-  "text-generation",
-  "text2text-generation",
-  "image-text-to-text",
-  "video-text-to-text",
-  "audio-text-to-text",
-  "visual-question-answering",
-  "document-question-answering",
-  "depth-estimation",
-  "image-classification",
-  "object-detection",
-  "image-segmentation",
-  "text-to-image",
-  "image-to-text",
-  "image-text-to-text",
-  "audio-text-to-text",
-  "video-text-to-text",
-  "unconditional-image-generation",
-  "video-classification",
-  "text-to-video",
-  "zero-shot-image-classification",
-  "mask-generation",
-  "zero-shot-object-detection",
-  "image-feature-extraction",
-  "text-classification",
-  "token-classification",
-  "question-answering",
-  "zero-shot-classification",
-  "translation",
-  "summarization",
-  "feature-extraction",
-  "text-generation",
-  "text2text-generation",
-  "fill-mask",
-  "sentence-similarity",
-  "text-to-speech",
-  "text-to-audio",
-  "automatic-speech-recognition",
-  "audio-classification"
+  // "text-generation",
+  // "audio-text-to-text",
+  // "image-text-to-text",
+  "video-text-to-text"
+  //
+  // "summarization",
+  // "translation",
+  // "text2text-generation",
+  // "visual-question-answering",
+  // "document-question-answering",
+  // "depth-estimation",
+  // "image-classification",
+  // "object-detection",
+  // "image-segmentation",
+  // "text-to-image",
+  // "image-to-text",
+  // "unconditional-image-generation",
+  // "video-classification",
+  // "text-to-video",
+  // "zero-shot-image-classification",
+  // "mask-generation",
+  // "zero-shot-object-detection",
+  // "image-feature-extraction",
+  // "text-classification",
+  // "token-classification",
+  // "question-answering",
+  // "zero-shot-classification",
+  // "translation",
+  // "summarization",
+  // "feature-extraction",
+  // "text2text-generation",
+  // "fill-mask",
+  // "sentence-similarity",
+  // "text-to-speech",
+  // "text-to-audio",
+  // "automatic-speech-recognition",
+  // "audio-classification"
 ];
 
 const filesToUpdate = [
+  "adaptation.py",
+  "download_bytez_repo.py",
+  "environment.py",
+  "model_loader.py",
+  "run_endpoint_handler.py",
+  "serve.sh",
+  "streamer.py",
+  "utils.py",
+  "vllm_loader.py"
   // "model.py"
-  "download_bytez_repo.py"
+
   // "environment.py"
   // "model_loader.py",
   // // "streamer.py"
@@ -57,94 +64,296 @@ const filesToUpdate = [
   // "vllm_mocks.py"
 ];
 
+const BYTEZ_API_UTILITIES_PATH = pathModule.resolve(
+  `${__dirname}/../../../../bytez-api-utilities`
+);
+
+// the "to" prop is relatively pathed
+const filesToUpdateForSpecificTasks = {
+  "audio-text-to-text": {
+    filePaths: [
+      // default model loader
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
+        to: "model_loader.py"
+      },
+      // endpoint handler
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/audio-text-to-text/containerFiles/run_endpoint_handler.py`,
+        to: "run_endpoint_handler.py"
+      },
+      // task specific model_entity.py
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/audio_text_to_text/model_entity.py`,
+        to: "architecture_registry_module/tasks/audio_text_to_text/model_entity.py"
+      },
+      // specific architecture updates
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py"
+      }
+    ]
+  },
+  "image-text-to-text": {
+    filePaths: [
+      // default model loader
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
+        to: "model_loader.py"
+      },
+      // endpoint handler
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/image-text-to-text/containerFiles/run_endpoint_handler.py`,
+        to: "run_endpoint_handler.py"
+      },
+      // task specific model_entity.py
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/model_entity.py`,
+        to: "architecture_registry_module/tasks/image_text_to_text/model_entity.py"
+      },
+      // specific architecture updates
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py"
+      },
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py"
+      },
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py"
+      },
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py"
+      },
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py"
+      },
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py"
+      }
+    ]
+  },
+  "video-text-to-text": {
+    filePaths: [
+      // default model loader
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
+        to: "model_loader.py"
+      },
+      // endpoint handler
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/video-text-to-text/containerFiles/run_endpoint_handler.py`,
+        to: "run_endpoint_handler.py"
+      },
+      // specific architecture updates
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py"
+      },
+      {
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py`,
+        to: "architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py",
+        // only modify those which have this arch
+        mustHaveFile:
+          "architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py"
+      }
+    ]
+  }
+};
+
 async function main() {
-  const pathToIterateOver = `${__dirname}/../../../modelsRepo`;
+  const ROOT_DIR = pathModule.resolve(`${__dirname}/../../../modelsRepo`);
 
-  const pathsToIterateOver = tasksToUpdate.map(
-    task => `${pathToIterateOver}/${task}`
-  );
-
-  const rootDir = `${__dirname}/../../../modelsRepo`;
+  const pathsToIterateOver = tasksToUpdate.map(task => `${ROOT_DIR}/${task}`);
 
   const modelPathObjects = await higherOrderIterator(
     pathsToIterateOver,
     undefined,
     undefined,
-    rootDir
+    ROOT_DIR
   );
 
-  for (const nameOfFileToUpdate of filesToUpdate) {
-    const newFilePath = `${__dirname}/../../../../bytez-api-utilities/jobRunner/templates/default/${nameOfFileToUpdate}`;
+  const modelsToUpdate = [];
 
-    const newFileBuffer = await fs.readFile(newFilePath);
+  for (const modelPathObject of modelPathObjects) {
+    // using an obj allows us to overrride existing paths if task specific files are specified
+    const _filesToUpdate = {};
+    const { task, modelId, filePath } = modelPathObject;
 
-    const newFileContents = newFileBuffer.toString();
+    // skip any tasks you don't want to update
+    if (!tasksToUpdate.includes(task)) {
+      continue;
+    }
 
-    console.log("New file is:\n\n", newFileContents);
+    // update root level files
+    for (const file of filesToUpdate) {
+      _filesToUpdate[file] = {
+        name: file,
+        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/default/${file}`,
+        to: `${filePath}/${file}`
+      };
+    }
 
-    const updatedModels = [];
-    const notUpdatedModels = [];
+    // if there are task specific files, add those
+    const config = filesToUpdateForSpecificTasks[task];
 
-    const failedModels = [];
+    if (config) {
+      for (const { from, to: name, mustHaveFile } of config.filePaths) {
+        const toPath = `${ROOT_DIR}/${task}/${modelId}/${name}`;
+        const fromPath = pathModule.resolve(from);
+        if (mustHaveFile) {
+          const exists = await checkExistence(toPath);
 
-    for (const [index, modelPathObject] of modelPathObjects.map((v, i) => [
-      i,
-      v
-    ])) {
-      {
-        const { modelId, githubLink, file, filePath, task } = modelPathObject;
+          if (exists) {
+            // now update the specific file
 
-        if (!tasksToUpdate.includes(task)) {
+            _filesToUpdate[name] = {
+              name,
+              from: fromPath,
+              to: toPath
+            };
+          }
           continue;
         }
 
-        console.log(
-          `On model: ${modelId} (${index + 1}/${modelPathObjects.length})`
-        );
+        _filesToUpdate[name] = {
+          name,
+          from: fromPath,
+          to: toPath
+        };
+      }
+    }
 
-        const fileToUpdatePath = `${filePath}/${nameOfFileToUpdate}`;
+    modelsToUpdate.push({
+      ...modelPathObject,
+      filesToUpdate: Object.values(_filesToUpdate)
+    });
+  }
+
+  const updatedModels = [];
+  const notUpdatedModels = [];
+
+  const failedModels = [];
+
+  for (const [index, modelPathObject] of modelsToUpdate.map((v, i) => [i, v])) {
+    {
+      const { modelId, githubLink, file, filePath, task, filesToUpdate } =
+        modelPathObject;
+
+      console.log(
+        `On model: ${modelId} (${index + 1}/${modelPathObjects.length})`
+      );
+
+      let failed = false;
+      let updated = false;
+
+      for (const { name, from, to: fileToUpdatePath } of filesToUpdate) {
+        console.log("Updating file: ", name);
+
+        console.log(`${from} --> ${fileToUpdatePath}`);
+
+        const newFileBuffer = await fs.readFile(from);
+
+        const newFileContents = newFileBuffer.toString();
+
+        console.log("New file is:\n\n", newFileContents);
 
         // overwrite the target file with the new file contents
         try {
-          const exists = await fs
-            .stat(fileToUpdatePath)
-            .then(() => true)
-            .catch(() => false);
+          const exists = await checkExistence(fileToUpdatePath);
 
           if (!exists) {
             await fs.writeFile(fileToUpdatePath, newFileBuffer);
-            updatedModels.push(modelPathObject);
+            updated = true;
 
             continue;
           }
 
-          const buffer = await fs.readFile(fileToUpdatePath);
-          const oldFileContents = buffer.toString();
+          const oldFileContents = await getFileString(fileToUpdatePath);
 
           if (oldFileContents !== newFileContents) {
             await fs.writeFile(fileToUpdatePath, newFileBuffer);
-            updatedModels.push(modelPathObject);
-          } else {
-            notUpdatedModels.push(modelPathObject);
+            updated = true;
           }
         } catch (error) {
-          failedModels.push(modelPathObject);
+          console.error(error);
+          failed = true;
         }
       }
+      if (updated) {
+        updatedModels.push(modelPathObject);
+      }
+
+      if (!updated) {
+        notUpdatedModels.push(modelPathObject);
+      }
+
+      if (failed) {
+        failedModels.push(modelPathObject);
+      }
     }
-
-    console.log(`Total models: ${modelPathObjects.length}`);
-    console.log(
-      `File: ${nameOfFileToUpdate} updated for ${updatedModels.length} models`
-    );
-    console.log(
-      `${notUpdatedModels.length} models had the same contents and were not updated`
-    );
-
-    console.log("Number of models that failed: ", failedModels.length);
-
-    debugger;
   }
+
+  console.log(`Total models: ${modelPathObjects.length}`);
+  console.log(`${updatedModels.length} models were updated`);
+  console.log(
+    `${notUpdatedModels.length} models had the same contents and were not updated`
+  );
+
+  console.log("Number of models that failed: ", failedModels.length);
+
+  debugger;
+}
+
+async function checkExistence(path) {
+  try {
+    await fs.stat(path);
+    return true;
+  } catch (error) {
+    // console.error(error);
+    return false;
+  }
+}
+
+async function copy(from, to) {
+  const string = await getFileString(from);
+  await fs.writeFile(to, string);
+}
+
+async function getFileString(path) {
+  const buffer = await fs.readFile(path);
+  const string = buffer.toString();
+
+  return string;
 }
 
 if (require.main === module) {
