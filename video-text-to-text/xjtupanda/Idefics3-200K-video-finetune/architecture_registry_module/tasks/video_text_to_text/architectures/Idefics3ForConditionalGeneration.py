@@ -34,13 +34,16 @@ class Idefics3ForConditionalGeneration(VideoTextToTextModelEntity):
             adapted_messages, add_generation_prompt=True
         )
 
-        output = self.generate(prompt, videos, **kwargs)
+        output = self.generate(prompt, videos, **kwargs)[0]
 
         output_messages = messages + [
-            {"role": "assistant", "content": [{"type": "text", "text": output}]}
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": output["generated_text"]}],
+            }
         ]
 
-        return output_messages
+        return [{**output, "generated_text": output_messages}]
 
     def generate(self, text, videos, **kwargs):
 
@@ -77,7 +80,13 @@ class Idefics3ForConditionalGeneration(VideoTextToTextModelEntity):
 
         formatted_text = formatted_text.strip()
 
-        return formatted_text
+        return [
+            dict(
+                generated_text=formatted_text,
+                sequence=getattr(generated_ids, "sequences", [[]])[0],
+                scores=getattr(generated_ids, "scores", None),
+            )
+        ]
 
     def adapt_to_conversational_chat_json(self, messages: List[dict]):
         adapted_messages = []
