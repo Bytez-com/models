@@ -40,13 +40,16 @@ class AudioTextToTextModelEntity(ModelEntity):
             adapted_messages, add_generation_prompt=True, tokenize=False
         )
 
-        output = self.generate(text, audios, **kwargs)
+        output = self.generate(text, audios, **kwargs)[0]
 
         output_messages = messages + [
-            {"role": "assistant", "content": [{"type": "text", "text": output}]}
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": output["generated_text"]}],
+            }
         ]
 
-        return output_messages
+        return [{**output, "generated_text": output_messages}]
 
     def generate(self, text, audios, **kwargs):
         kwargs = {**kwargs, "streamer": kwargs.get("streamer")}

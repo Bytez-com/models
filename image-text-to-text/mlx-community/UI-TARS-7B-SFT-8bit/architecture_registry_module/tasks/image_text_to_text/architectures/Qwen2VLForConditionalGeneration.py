@@ -1,12 +1,18 @@
 from dataclasses import dataclass
 
+from PIL import Image
+import requests
+
 from architecture_registry_module.tasks.image_text_to_text.model_entity import (
     ImageTextToTextModelEntity,
 )
 
-from transformers import pipeline
+from transformers import (
+    Qwen2VLForConditionalGeneration as _Qwen2VLForConditionalGeneration,
+)
 
 from torch import nn
+
 
 class MonkeyPatchedEmbedding(nn.Module):
     def __init__(self, original_embed_tokens, device):
@@ -19,8 +25,14 @@ class MonkeyPatchedEmbedding(nn.Module):
         tensors = self.original_embed_tokens(*args, **kwargs)
         return tensors.to(self.device)
 
+
 @dataclass
 class Qwen2VLForConditionalGeneration(ImageTextToTextModelEntity):
+    @classmethod
+    def load_model_from_model_id(cls, model_id: str, **kwargs):
+        model = _Qwen2VLForConditionalGeneration.from_pretrained(model_id, **kwargs)
+        return model
+
     @classmethod
     def load_from_model_id(
         cls, model_id: str, load_model=True, load_processor=True, **kwargs
@@ -40,20 +52,84 @@ class Qwen2VLForConditionalGeneration(ImageTextToTextModelEntity):
         if not load_model:
             return cls(model=None, processor=processor, pipe=None, **kwargs)
 
+        model = cls.load_model_from_model_id(model_id, **kwargs)
 
-        pipe = pipeline(
-            "image-text-to-text", model=model_id, processor=processor, **kwargs
-        )
-
-        # NOTE monkey patch the bad embed layer that points to device 1, the forward() logic demands that
+        # NOTE allows multi GPU to work properyl, monkey patch the bad embed layer that points to device 1, the forward() logic demands that
         # these be on the same device as operations are performed on the attention mask and input_ids, which reside on the model's default device
         # the problem is accelerate gets that one aspect of the device map wrong when it tries to infer where each layer should go.
         # we force that layer to be on the same layer as the rest of the inputs with this monkey patch
-        original_embed_tokens = pipe.model.model.embed_tokens
+        # we only update it if it exists on the model
 
-        pipe.model.model.embed_tokens = MonkeyPatchedEmbedding(original_embed_tokens, pipe.model.device)
+        if getattr(model.model, "embed_tokens", None):
+            original_embed_tokens = model.model.embed_tokens
 
-        return cls(model=pipe.model, processor=processor, pipe=pipe)
+            model.embed_tokens = MonkeyPatchedEmbedding(
+                original_embed_tokens, model.device
+            )
+
+        return cls(model=model, processor=processor)
+
+    def run_inference_default(self, text, images, **kwargs):
+        return self.generate(text, images, **kwargs)
+
+    def run_inference_chat(self, *args, **kwargs):
+        messages = args[0]
+
+        adapted_messages, images, videos = self.adapt_to_conversational_chat_json(
+            messages=messages
+        )
+
+        # output is a dict that contains keys "generated_text", "scores", "sequence" etc. if called directly from transformers pipeline() pipe
+        output = self.generate(adapted_messages, images, **kwargs)[0]
+
+        output_messages = messages + [
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": output["generated_text"]}],
+            }
+        ]
+
+        return [{**output, "generated_text": output_messages}]
+
+    def generate(self, text, images, **kwargs):
+        text_prompt = self.processor.apply_chat_template(
+            text, add_generation_prompt=True
+        )
+
+        images = [Image.open(requests.get(url, stream=True).raw) for url in images]
+
+        if not images:
+            images = None
+
+        inputs = self.processor(
+            text=[text_prompt], images=images, padding=True, return_tensors="pt"
+        )
+
+        inputs = inputs.to(self.model.device)
+
+        # Generate outputs
+        generated_ids = self.model.generate(
+            **inputs,
+            **kwargs,
+        )
+
+        input_ids = inputs.input_ids[0]
+
+        new_generated_ids = generated_ids["sequences"][0][len(input_ids) :]
+
+        formatted_text: str = self.processor.decode(
+            new_generated_ids, skip_special_tokens=True
+        )
+
+        formatted_text = formatted_text.strip()
+
+        return [
+            dict(
+                generated_text=formatted_text,
+                sequence=generated_ids.get("sequences", [[]])[0],
+                scores=generated_ids.get("scores", None),
+            )
+        ]
 
 
 # universal stub used by the model loader

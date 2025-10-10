@@ -70,16 +70,10 @@ class ImageTextToTextModelEntity(ModelEntity):
             messages=messages
         )
 
-        output = self.generate(adapted_messages, images, videos, **kwargs)
+        # output is a dict that contains keys "generated_text", "scores", "sequence" etc. if called directly from transformers pipeline() pipe
+        output = self.generate(adapted_messages, images, videos, **kwargs)[0]
 
-        last_message = output[-1]
-
-        last_message_content = last_message["content"]
-
-        last_message["role"] = "assistant"
-        last_message["content"] = [{"type": "text", "text": last_message_content}]
-
-        return output
+        return [output]
 
     def generate(self, text, images, videos, **kwargs):
         kwargs = {**{"generate_kwargs": {"streamer": kwargs.get("streamer")}, **kwargs}}
@@ -93,9 +87,7 @@ class ImageTextToTextModelEntity(ModelEntity):
 
         output = self.pipe(text=text, images=images, **kwargs)
 
-        generated_text = output[0]["generated_text"]
-
-        return generated_text
+        return output
 
     def adapt_to_conversational_chat_json(self, messages: List[dict]):
         new_messages = []

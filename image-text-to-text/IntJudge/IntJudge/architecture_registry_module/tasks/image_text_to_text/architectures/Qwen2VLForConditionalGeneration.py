@@ -58,13 +58,40 @@ class Qwen2VLForConditionalGeneration(ImageTextToTextModelEntity):
         # these be on the same device as operations are performed on the attention mask and input_ids, which reside on the model's default device
         # the problem is accelerate gets that one aspect of the device map wrong when it tries to infer where each layer should go.
         # we force that layer to be on the same layer as the rest of the inputs with this monkey patch
-        original_embed_tokens = model.model.embed_tokens
+        # we only update it if it exists on the model
 
-        model.embed_tokens = MonkeyPatchedEmbedding(original_embed_tokens, model.device)
+        if getattr(model.model, "embed_tokens", None):
+            original_embed_tokens = model.model.embed_tokens
+
+            model.embed_tokens = MonkeyPatchedEmbedding(
+                original_embed_tokens, model.device
+            )
 
         return cls(model=model, processor=processor)
 
-    def generate(self, text, images, videos, **kwargs):
+    def run_inference_default(self, text, images, **kwargs):
+        return self.generate(text, images, **kwargs)
+
+    def run_inference_chat(self, *args, **kwargs):
+        messages = args[0]
+
+        adapted_messages, images, videos = self.adapt_to_conversational_chat_json(
+            messages=messages
+        )
+
+        # output is a dict that contains keys "generated_text", "scores", "sequence" etc. if called directly from transformers pipeline() pipe
+        output = self.generate(adapted_messages, images, **kwargs)[0]
+
+        output_messages = messages + [
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": output["generated_text"]}],
+            }
+        ]
+
+        return [{**output, "generated_text": output_messages}]
+
+    def generate(self, text, images, **kwargs):
         text_prompt = self.processor.apply_chat_template(
             text, add_generation_prompt=True
         )
@@ -88,7 +115,7 @@ class Qwen2VLForConditionalGeneration(ImageTextToTextModelEntity):
 
         input_ids = inputs.input_ids[0]
 
-        new_generated_ids = generated_ids[0][len(input_ids) :]
+        new_generated_ids = generated_ids["sequences"][0][len(input_ids) :]
 
         formatted_text: str = self.processor.decode(
             new_generated_ids, skip_special_tokens=True
@@ -96,11 +123,13 @@ class Qwen2VLForConditionalGeneration(ImageTextToTextModelEntity):
 
         formatted_text = formatted_text.strip()
 
-        # if the inference was submitted as chat
-        if isinstance(text, list):
-            return [{"role": "assistant", "content": formatted_text}]
-
-        return formatted_text
+        return [
+            dict(
+                generated_text=formatted_text,
+                sequence=generated_ids.get("sequences", [[]])[0],
+                scores=generated_ids.get("scores", None),
+            )
+        ]
 
 
 # universal stub used by the model loader

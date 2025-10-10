@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import requests
@@ -12,8 +13,13 @@ API_KEY = os.environ.get("GITHUB_API_KEY")
 TASK = os.environ.get("TASK")
 MODEL_ID = os.environ.get("MODEL_ID")
 USE_JSDELIVR = os.environ.get("USE_JSDELIVR", "false").lower() == "true"
+SKIP_ALL_DOWNLOADS = os.environ.get("SKIP_ALL_DOWNLOADS", "false").lower() == "true"
+
 REPO_DOWNLOAD_ATTEMPTS = int(os.environ.get("REPO_DOWNLOAD_ATTEMPTS", "5"))
 REPO_DOWNLOAD_FAIL_SLEEP_S = int(os.environ.get("REPO_DOWNLOAD_FAIL_SLEEP_S", "10"))
+
+FILES_TO_IGNORE = json.loads(os.environ.get("FILES_TO_IGNORE", "[]"))
+FILES_TO_INCLUDE = json.loads(os.environ.get("FILES_TO_INCLUDE", "[]"))
 
 HEADERS = (
     {
@@ -75,6 +81,16 @@ def download_file(item):
 
     path = item.get("path")
 
+    file_name = path.split("/")[-1]
+
+    if FILES_TO_INCLUDE and not file_name in FILES_TO_INCLUDE:
+        print(f"Not downloading: {path} as it is not specified in FILES_TO_INCLUDE")
+        return
+
+    if file_name in FILES_TO_IGNORE:
+        print(f"Not downloading: {path} as it is specified in FILES_TO_IGNORE")
+        return
+
     adjusted_path = path.split(f"{TASK}/{MODEL_ID}/")[1]
     file_path = f"{WORKING_DIR}/{adjusted_path}"
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -104,6 +120,8 @@ def download_files():
 
 
 if __name__ == "__main__":
+    if SKIP_ALL_DOWNLOADS:
+        exit()
     print("Downloading model repo...")
     download_files()
     print("Done downloading model repo")

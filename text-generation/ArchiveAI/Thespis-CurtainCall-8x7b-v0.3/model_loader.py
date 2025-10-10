@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from traceback import format_exc
 from transformers import pipeline
 from environment import (
     MODEL_ID,
@@ -82,6 +83,7 @@ if LOAD_WITH_VLLM:
             vllm_env_vars=VLLM_ENV_VARS,
         )
     except Exception as exception:
+        exception = format_exc()
         print(exception)
         print("vLLM failed to load, falling back to default loading method")
         vllm_failed = True
@@ -91,6 +93,7 @@ if not LOAD_WITH_VLLM or vllm_failed:
     # this does a double check for things that should be present, e.g. tokenizers, image_processors, etc.
     validate_pipe(pipe)
 
+LOADED_ON_VLLM = LOAD_WITH_VLLM and not vllm_failed
 
 print("Model loaded")
 

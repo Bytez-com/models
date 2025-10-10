@@ -9,6 +9,9 @@ import sys
 import threading
 
 import requests
+from streamer import ComplianceFormat
+from adaptation import get_and_delete_from_dict
+
 
 PYTHON_EXECUTABLE = sys.executable
 
@@ -76,6 +79,10 @@ class PipeVLLM:
             bad_words_ids="bad_words",
             ignore_eos="ignore_eos",
             num_return_sequences="n",  # maps to OpenAI-style n
+            stream="stream",
+            # logprobs settings
+            logprobs="logprobs",
+            top_logprobs="top_logprobs",
         )
 
         new_kwargs = {}
@@ -105,12 +112,25 @@ class PipeVLLM:
         return new_kwargs
 
     def generate(self, request_input, **kwargs):
-        streamer = kwargs.get("streamer")
+        streamer = get_and_delete_from_dict(kwargs, "streamer")
+        compliance_format: ComplianceFormat = get_and_delete_from_dict(
+            kwargs, "compliance_format"
+        )
 
         if streamer:
-            del kwargs["streamer"]
+            kwargs["stream"] = True
 
         adapted_kwargs = self.adapt_hf_to_vllm_kwargs(**kwargs)
+
+        # vLLM will include log probs in the response if this is False
+        # this is for safety
+        if "logprobs" in adapted_kwargs:
+            log_probs_option = adapted_kwargs["logprobs"]
+            should_delete = log_probs_option == False or log_probs_option is None
+            if should_delete:
+                del adapted_kwargs["logprobs"]
+                if "top_logprobs" in adapted_kwargs:
+                    del adapted_kwargs["top_logprobs"]
 
         endpoint = ""
 
@@ -124,17 +144,16 @@ class PipeVLLM:
             adapted_kwargs["messages"] = adapted_messages
             endpoint = "/v1/chat/completions"
 
+        stream = adapted_kwargs.get("stream", False)
+
         response = requests.post(
             f"http://localhost:{self.port}{endpoint}",
             headers={"Content-Type": "application/json"},
             json={
                 "model": self.model_id,
-                "stream": True,
                 **adapted_kwargs,
             },
-            # we always stream because we get the same result back
-            # NOTE there may be performance downsides to this, albeit minor
-            stream=True,
+            stream=stream,
         )
 
         if not response.ok:
@@ -143,30 +162,72 @@ class PipeVLLM:
             message = error_obj["message"]
             raise Exception(f"{error_type}: {message}")
 
-        output_text = ""
+        if stream:
+            return self.handle_streaming_request(
+                is_string_input,
+                response,
+                compliance_format,
+                streamer,
+            )
+
+        return self.handle_blocking_request(
+            request_input,
+            is_string_input,
+            response,
+            compliance_format,
+        )
+
+    def handle_streaming_request(
+        self,
+        is_string_input,
+        response,
+        compliance_format: ComplianceFormat,
+        streamer,
+    ):
         for line in response.iter_lines(decode_unicode=True):
             if line:
+                if streamer and (compliance_format.is_openai_format()):
+                    streamer.put(f"{line}\n\n")
+                    continue
+
                 if line.strip() == "data: [DONE]":
                     break
+
                 if line.startswith("data: "):
                     payload = json.loads(line[len("data: ") :])
 
-                    if is_string_input:
-                        delta = payload["choices"][0]["text"]
+                    delta = (
+                        payload["choices"][0]["text"]
+                        if is_string_input
+                        else payload["choices"][0]["delta"].get("content", "")
+                    )
 
-                    else:
-                        delta = payload["choices"][0]["delta"].get("content", "")
+                    streamer.put(delta)
 
-                    output_text += delta
+        streamer.end()
 
-                    if streamer:
-                        streamer.put(delta)
+    def handle_blocking_request(
+        self,
+        request_input,
+        is_string_input,
+        response,
+        compliance_format: ComplianceFormat,
+    ):
+        json = response.json()
 
-        if streamer:
-            streamer.end()
+        if compliance_format.is_openai_format():
+            return json
 
         if is_string_input:
-            return [dict(generated_text=f"{request_input}{output_text}")]
+            output_text = json["choices"][0]["text"]
+            logprobs = json["choices"][0]["logprobs"]
+            return [
+                #
+                dict(generated_text=f"{request_input}{output_text}", logprobs=logprobs)
+            ]
+
+        output_text = json["choices"][0]["message"]["content"]
+        logprobs = json["choices"][0]["logprobs"]
 
         messages: list = request_input
 
@@ -175,7 +236,8 @@ class PipeVLLM:
                 generated_text=[
                     *messages,
                     dict(role="assistant", content=output_text),
-                ]
+                ],
+                logprobs=logprobs,
             )
         ]
 
@@ -266,7 +328,7 @@ class PipeVLLM:
 def load_model_with_vllm(
     model_id: str, port: int, torch_dtype, vllm_kwargs: dict, vllm_env_vars: dict
 ) -> PipeVLLM:
-    print("Starting vLLM server...")
+    print("Starting vLLM server...", vllm_kwargs)
 
     max_model_len = vllm_kwargs.get("max_model_len", 4096)
     block_size = vllm_kwargs.get("block_size", 16)

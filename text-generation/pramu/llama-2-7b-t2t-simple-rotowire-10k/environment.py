@@ -1,6 +1,7 @@
 import os
 import json
 import torch
+import transformers
 
 # if it hasn't already been set, prefer HF transfer
 os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
@@ -98,6 +99,7 @@ CONSTANTS_DICT = {
             "LOAD_WITH_VLLM": LOAD_WITH_VLLM,
             "VLLM_KWARGS": VLLM_KWARGS,
             "VLLM_ENV_VARS": VLLM_ENV_VARS,
+            "TRANSFORMERS_VERSION": transformers.__version__,
         }
         if DISABLE_ANALYTICS
         else {}

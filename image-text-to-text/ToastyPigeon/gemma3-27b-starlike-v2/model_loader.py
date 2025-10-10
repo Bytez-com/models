@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from traceback import format_exc
 import os
 import importlib.util
 import sys
@@ -147,6 +148,7 @@ class Registry:
 
                     return model_entity
                 except Exception as exception:
+                    exception = format_exc()
                     print(exception)
                     collected_exception = exception
 
@@ -165,6 +167,7 @@ if LOAD_WITH_VLLM:
             vllm_env_vars=VLLM_ENV_VARS,
         )
     except Exception as exception:
+        exception = format_exc()
         print(exception)
         print("vLLM failed to load, falling back to default loading method")
         vllm_failed = True
@@ -172,3 +175,5 @@ if LOAD_WITH_VLLM:
 if not LOAD_WITH_VLLM or vllm_failed:
     model_entity = Registry.get_model_entity()
     pipe = model_entity
+
+LOADED_ON_VLLM = LOAD_WITH_VLLM and not vllm_failed

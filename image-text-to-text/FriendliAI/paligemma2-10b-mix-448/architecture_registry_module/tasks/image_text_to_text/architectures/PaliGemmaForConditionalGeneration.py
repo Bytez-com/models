@@ -28,9 +28,7 @@ class PaliGemmaModelEntityForConditionalGeneration(ImageTextToTextModelEntity):
 
         output = self.pipe(text=text, images=images, **kwargs)
 
-        generated_text = output[0]["generated_text"]
-
-        return generated_text
+        return output
 
 
 # universal stub used by the model loader

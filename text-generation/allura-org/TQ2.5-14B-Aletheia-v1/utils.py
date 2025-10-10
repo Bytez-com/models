@@ -2,18 +2,28 @@ import time
 import threading
 from model import model_run
 from model import pipe
-from streamer import SingleTokenStreamer, SingleTokenStreamerVllm
+from model_loader import LOADED_ON_VLLM
+from streamer import (
+    SingleTokenStreamer,
+    SingleTokenStreamerVllm,
+)
 import numpy as np
-from environment import LOAD_WITH_VLLM
+from environment import MODEL_ID
 
 
-def model_run_generator(*args, params: dict):
+def model_run_generator(*args, params: dict, adaptation_kwargs: dict):
 
-    if LOAD_WITH_VLLM:
+    if LOADED_ON_VLLM:
+        # the compliance format is handed by the request handler itself for vLLM
         streamer = SingleTokenStreamerVllm()
     else:
+
         streamer = SingleTokenStreamer(
-            tokenizer=pipe.tokenizer, skip_prompt=True, skip_special_tokens=True
+            tokenizer=pipe.tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True,
+            model_id=MODEL_ID,
+            **adaptation_kwargs,
         )
 
     params["streamer"] = streamer

@@ -22,11 +22,7 @@ class MllamaModelEntity(ImageTextToTextModelEntity):
         text = f"{image_tokens}<|begin_of_text|>{text}"
         output = self.pipe(text=text, images=images, videos=videos, **kwargs)
 
-        input_text = output[0]["input_text"]
-
-        formatted_output = output[0]["generated_text"][len(input_text) :]
-
-        return formatted_output
+        return output
 
 
 # universal stub used by the model loader

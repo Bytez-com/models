@@ -60,14 +60,21 @@ class Qwen2AudioForConditionalGeneration(AudioTextToTextModelEntity):
         # move the tensors to the same device as the model
         inputs.input_ids = inputs.input_ids.to(self.model.device)
 
-        generate_ids = self.model.generate(**inputs, **kwargs)
-        generate_ids = generate_ids[:, inputs.input_ids.size(1) :]
+        output = self.model.generate(**inputs, **kwargs)
+
+        generated_ids = output["sequences"][:, len(inputs.input_ids[0]) :]
 
         response = self.processor.batch_decode(
-            generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )[0]
 
-        return response
+        return [
+            dict(
+                generated_text=response,
+                sequence=getattr(output, "sequences", [[]])[0],
+                scores=getattr(output, "scores", None),
+            )
+        ]
 
 
 # TODO this is no longer needed on the latest versions of transformers. Remove it when we upgrade to ^4.49.0

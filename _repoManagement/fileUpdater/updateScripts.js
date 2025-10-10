@@ -4,10 +4,10 @@ const fs = require("fs").promises;
 const pathModule = require("path");
 
 const tasksToUpdate = [
-  // "text-generation",
-  // "audio-text-to-text",
-  // "image-text-to-text",
-  "video-text-to-text"
+  "text-generation",
+  "audio-text-to-text",
+  "image-text-to-text"
+  // "video-text-to-text"
   //
   // "summarization",
   // "translation",
@@ -270,22 +270,22 @@ async function main() {
         modelPathObject;
 
       console.log(
-        `On model: ${modelId} (${index + 1}/${modelPathObjects.length})`
+        `On model: ${modelId} (${index + 1}/${modelsToUpdate.length})`
       );
 
       let failed = false;
       let updated = false;
 
       for (const { name, from, to: fileToUpdatePath } of filesToUpdate) {
-        console.log("Updating file: ", name);
+        // console.log("Updating file: ", name);
 
-        console.log(`${from} --> ${fileToUpdatePath}`);
+        // console.log(`${from} --> ${fileToUpdatePath}`);
 
         const newFileBuffer = await fs.readFile(from);
 
         const newFileContents = newFileBuffer.toString();
 
-        console.log("New file is:\n\n", newFileContents);
+        // console.log("New file is:\n\n", newFileContents);
 
         // overwrite the target file with the new file contents
         try {
