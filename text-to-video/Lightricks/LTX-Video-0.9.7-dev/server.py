@@ -21,11 +21,19 @@ if __name__ == "__main__" or __name__ == "server":
         LOG_LOADING,
         DEVICE,
         SYSTEM_LOGS_PATH,
+        SUPPORTS_OAI_COMPLIANCE,
+        OAI_COMPLIANT_TASKS,
     )
     from loading_tracker import LoadingTracker
     import multiprocessing
     import threading
     from stats import SYSTEM_RAM_TRACKER
+    from adaptation import (
+        oai_completions_req_to_hf_req,
+        oai_chat_completions_req_to_hf_req,
+    )
+
+    inference_lock = threading.Lock()
 
     multiprocessing.set_start_method("spawn", force=True)  # Set start method to 'spawn'
 
@@ -269,7 +277,46 @@ if __name__ == "__main__" or __name__ == "server":
         def run():
             from run_endpoint_handler import run_endpoint_handler
 
-            return run_endpoint_handler(request)
+            # NOTE important, pipeline is not thread safe, you do not want concurrent requests.
+            # futhermore, oftentimes even though it will perform inference, it severely degrades performance. Throughput is higher in serial.
+            with inference_lock:
+                return run_endpoint_handler(request)
+
+        # Open AI compliant completions endpoint
+        @app.route("/openai/v1/completions", methods=["POST"])
+        @track_analytics(event_name="Model Inference OAI Completions")
+        def run_oai_completions():
+            from run_endpoint_handler import run_endpoint_handler
+
+            if not SUPPORTS_OAI_COMPLIANCE:
+                raise Exception(
+                    f"/openai/v1/completions does not support task {TASK}. Supported tasks: {OAI_COMPLIANT_TASKS}"
+                )
+
+            adapted_request = oai_completions_req_to_hf_req(request)
+
+            # NOTE important, pipeline is not thread safe, you do not want concurrent requests.
+            # futhermore, oftentimes even though it will perform inference, it severely degrades performance. Throughput is higher in serial.
+            with inference_lock:
+                return run_endpoint_handler(adapted_request)
+
+        # Open AI compliant chat completions endpoint
+        @app.route("/openai/v1/chat/completions", methods=["POST"])
+        @track_analytics(event_name="Model Inference OAI Chat Completions")
+        def run_oai_chat_completions():
+            from run_endpoint_handler import run_endpoint_handler
+
+            if not SUPPORTS_OAI_COMPLIANCE:
+                raise Exception(
+                    f"/openai/v1/chat/completions does not support task {TASK}. Supported tasks: {OAI_COMPLIANT_TASKS}"
+                )
+
+            adapted_request = oai_chat_completions_req_to_hf_req(request)
+
+            # NOTE important, pipeline is not thread safe, you do not want concurrent requests.
+            # futhermore, oftentimes even though it will perform inference, it severely degrades performance. Throughput is higher in serial.
+            with inference_lock:
+                return run_endpoint_handler(adapted_request)
 
         @app.route("/status", methods=["GET"])
         async def load_status():

@@ -6,53 +6,54 @@ const pathModule = require("path");
 const tasksToUpdate = [
   "text-generation",
   "audio-text-to-text",
-  "image-text-to-text"
-  // "video-text-to-text"
+  "image-text-to-text",
+  "video-text-to-text",
   //
-  // "summarization",
-  // "translation",
-  // "text2text-generation",
-  // "visual-question-answering",
-  // "document-question-answering",
-  // "depth-estimation",
-  // "image-classification",
-  // "object-detection",
-  // "image-segmentation",
-  // "text-to-image",
-  // "image-to-text",
-  // "unconditional-image-generation",
-  // "video-classification",
-  // "text-to-video",
-  // "zero-shot-image-classification",
-  // "mask-generation",
-  // "zero-shot-object-detection",
-  // "image-feature-extraction",
-  // "text-classification",
-  // "token-classification",
-  // "question-answering",
-  // "zero-shot-classification",
-  // "translation",
-  // "summarization",
-  // "feature-extraction",
-  // "text2text-generation",
-  // "fill-mask",
-  // "sentence-similarity",
-  // "text-to-speech",
-  // "text-to-audio",
-  // "automatic-speech-recognition",
-  // "audio-classification"
+  "summarization",
+  "translation",
+  "text2text-generation",
+  "visual-question-answering",
+  "document-question-answering",
+  "depth-estimation",
+  "image-classification",
+  "object-detection",
+  "image-segmentation",
+  "text-to-image",
+  "image-to-text",
+  "unconditional-image-generation",
+  "video-classification",
+  "text-to-video",
+  "zero-shot-image-classification",
+  "mask-generation",
+  "zero-shot-object-detection",
+  "image-feature-extraction",
+  "text-classification",
+  "token-classification",
+  "question-answering",
+  "zero-shot-classification",
+  "translation",
+  "summarization",
+  "feature-extraction",
+  "text2text-generation",
+  "fill-mask",
+  "sentence-similarity",
+  "text-to-speech",
+  "text-to-audio",
+  "automatic-speech-recognition",
+  "audio-classification"
 ];
 
 const filesToUpdate = [
   "adaptation.py",
-  "download_bytez_repo.py",
+  // "download_bytez_repo.py",
   "environment.py",
-  "model_loader.py",
-  "run_endpoint_handler.py",
-  "serve.sh",
-  "streamer.py",
-  "utils.py",
-  "vllm_loader.py"
+  "server.py"
+  // "model_loader.py",
+  // "run_endpoint_handler.py",
+  // "serve.sh",
+  // "streamer.py",
+  // "utils.py",
+  // "vllm_loader.py"
   // "model.py"
 
   // "environment.py"
@@ -70,124 +71,124 @@ const BYTEZ_API_UTILITIES_PATH = pathModule.resolve(
 
 // the "to" prop is relatively pathed
 const filesToUpdateForSpecificTasks = {
-  "audio-text-to-text": {
-    filePaths: [
-      // default model loader
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
-        to: "model_loader.py"
-      },
-      // endpoint handler
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/audio-text-to-text/containerFiles/run_endpoint_handler.py`,
-        to: "run_endpoint_handler.py"
-      },
-      // task specific model_entity.py
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/audio_text_to_text/model_entity.py`,
-        to: "architecture_registry_module/tasks/audio_text_to_text/model_entity.py"
-      },
-      // specific architecture updates
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py"
-      }
-    ]
-  },
-  "image-text-to-text": {
-    filePaths: [
-      // default model loader
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
-        to: "model_loader.py"
-      },
-      // endpoint handler
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/image-text-to-text/containerFiles/run_endpoint_handler.py`,
-        to: "run_endpoint_handler.py"
-      },
-      // task specific model_entity.py
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/model_entity.py`,
-        to: "architecture_registry_module/tasks/image_text_to_text/model_entity.py"
-      },
-      // specific architecture updates
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py"
-      },
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py"
-      },
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py"
-      },
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py"
-      },
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py"
-      },
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py"
-      }
-    ]
-  },
-  "video-text-to-text": {
-    filePaths: [
-      // default model loader
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
-        to: "model_loader.py"
-      },
-      // endpoint handler
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/video-text-to-text/containerFiles/run_endpoint_handler.py`,
-        to: "run_endpoint_handler.py"
-      },
-      // specific architecture updates
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py"
-      },
-      {
-        from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py`,
-        to: "architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py",
-        // only modify those which have this arch
-        mustHaveFile:
-          "architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py"
-      }
-    ]
-  }
+  // "audio-text-to-text": {
+  //   filePaths: [
+  //     // default model loader
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
+  //       to: "model_loader.py"
+  //     },
+  //     // endpoint handler
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/audio-text-to-text/containerFiles/run_endpoint_handler.py`,
+  //       to: "run_endpoint_handler.py"
+  //     },
+  //     // task specific model_entity.py
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/audio_text_to_text/model_entity.py`,
+  //       to: "architecture_registry_module/tasks/audio_text_to_text/model_entity.py"
+  //     },
+  //     // specific architecture updates
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/audio_text_to_text/architectures/Qwen2AudioForConditionalGeneration.py"
+  //     }
+  //   ]
+  // },
+  // "image-text-to-text": {
+  //   filePaths: [
+  //     // default model loader
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
+  //       to: "model_loader.py"
+  //     },
+  //     // endpoint handler
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/image-text-to-text/containerFiles/run_endpoint_handler.py`,
+  //       to: "run_endpoint_handler.py"
+  //     },
+  //     // task specific model_entity.py
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/model_entity.py`,
+  //       to: "architecture_registry_module/tasks/image_text_to_text/model_entity.py"
+  //     },
+  //     // specific architecture updates
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/image_text_to_text/architectures/Gemma3ForConditionalGeneration.py"
+  //     },
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/image_text_to_text/architectures/Idefics3ForConditionalGeneration.py"
+  //     },
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/image_text_to_text/architectures/Llama4ForConditionalGeneration.py"
+  //     },
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/image_text_to_text/architectures/MllamaForConditionalGeneration.py"
+  //     },
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/image_text_to_text/architectures/PaliGemmaForConditionalGeneration.py"
+  //     },
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/image_text_to_text/architectures/Qwen2VLForConditionalGeneration.py"
+  //     }
+  //   ]
+  // },
+  // "video-text-to-text": {
+  //   filePaths: [
+  //     // default model loader
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/model_loader.py`,
+  //       to: "model_loader.py"
+  //     },
+  //     // endpoint handler
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/templates/multimodal/video-text-to-text/containerFiles/run_endpoint_handler.py`,
+  //       to: "run_endpoint_handler.py"
+  //     },
+  //     // specific architecture updates
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/video_text_to_text/architectures/Idefics3ForConditionalGeneration.py"
+  //     },
+  //     {
+  //       from: `${BYTEZ_API_UTILITIES_PATH}/jobRunner/template_extensions/custom_model_loader/architecture_registry/architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py`,
+  //       to: "architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py",
+  //       // only modify those which have this arch
+  //       mustHaveFile:
+  //         "architecture_registry_module/tasks/video_text_to_text/architectures/LlavaNextVideoForConditionalGeneration.py"
+  //     }
+  //   ]
+  // }
 };
 
 async function main() {

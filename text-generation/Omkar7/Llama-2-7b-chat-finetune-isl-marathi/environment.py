@@ -74,6 +74,15 @@ LOAD_WITH_VLLM = json.loads(os.environ.get("LOAD_WITH_VLLM", "false"))
 VLLM_KWARGS = json.loads(os.environ.get("VLLM_KWARGS", "{}"))
 VLLM_ENV_VARS = json.loads(os.environ.get("VLLM_ENV_VARS", "{}"))
 
+OAI_COMPLIANT_TASKS = [
+    "text-generation",
+    "audio-text-to-text",
+    "image-text-to-text",
+    "video-text-to-text",
+]
+
+SUPPORTS_OAI_COMPLIANCE = TASK in OAI_COMPLIANT_TASKS
+
 CONSTANTS_DICT = {
     "TASK": TASK,
     "MODEL": MODEL_ID,
@@ -99,6 +108,7 @@ CONSTANTS_DICT = {
             "LOAD_WITH_VLLM": LOAD_WITH_VLLM,
             "VLLM_KWARGS": VLLM_KWARGS,
             "VLLM_ENV_VARS": VLLM_ENV_VARS,
+            "SUPPORTS_OAI_COMPLIANCE": SUPPORTS_OAI_COMPLIANCE,
             "TRANSFORMERS_VERSION": transformers.__version__,
         }
         if DISABLE_ANALYTICS
