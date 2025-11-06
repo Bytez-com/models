@@ -1,3 +1,4 @@
+import base64
 from typing import List
 from dataclasses import dataclass
 from io import BytesIO
@@ -46,7 +47,9 @@ class VideoTextToTextModelEntity(ModelEntity):
                     type = content_item["type"]
 
                     if type == "video":
-                        video_url = content_item["url"]
+                        video_url = content_item.get("url") or content_item.get(
+                            "base64"
+                        )
 
                         new_content_item = {"type": "video"}
 
@@ -60,10 +63,23 @@ class VideoTextToTextModelEntity(ModelEntity):
 
         return new_messages, videos
 
-    def download_video(self, video_url):
-        response = requests.get(video_url)
-        response.raise_for_status()
-        video_bytes = BytesIO(response.content)
+    def download_video(self, video_url: str):
+        # normal http links
+        if video_url.startswith("http"):
+            response = requests.get(video_url)
+            response.raise_for_status()
+            video_bytes = BytesIO(response.content)
+
+            return video_bytes
+
+        # base64 strings
+        if "," in video_url:
+            b64_string = video_url.split(",", 1)[1]
+        else:
+            b64_string = video_url
+
+        video_data = base64.b64decode(b64_string)
+        video_bytes = BytesIO(video_data)
 
         return video_bytes
 

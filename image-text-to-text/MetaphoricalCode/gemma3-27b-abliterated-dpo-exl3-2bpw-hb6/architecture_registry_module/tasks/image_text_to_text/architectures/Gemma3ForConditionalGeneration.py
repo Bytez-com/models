@@ -1,8 +1,5 @@
 from dataclasses import dataclass
 
-from PIL import Image
-import requests
-
 from architecture_registry_module.tasks.image_text_to_text.model_entity import (
     ImageTextToTextModelEntity,
 )
@@ -66,13 +63,16 @@ class Gemma3ForConditionalGeneration(ImageTextToTextModelEntity):
             text, add_generation_prompt=True
         )
 
-        images = [Image.open(requests.get(url, stream=True).raw) for url in images]
+        loaded_images = self.load_images(images)
 
-        if not images:
-            images = None
+        if not loaded_images:
+            loaded_images = None
 
         inputs = self.processor(
-            text=[text_prompt], images=images, padding=True, return_tensors="pt"
+            text=[text_prompt],
+            images=loaded_images,
+            padding=True,
+            return_tensors="pt",
         )
 
         inputs = inputs.to(self.model.device)

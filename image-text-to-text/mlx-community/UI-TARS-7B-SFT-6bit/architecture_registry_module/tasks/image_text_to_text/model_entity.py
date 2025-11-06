@@ -1,5 +1,11 @@
+import base64
 from typing import List
 from dataclasses import dataclass
+from io import BytesIO
+
+
+from PIL import Image
+import requests
 from transformers import AutoProcessor, pipeline
 
 from architecture_registry_module.classes.model_entity import ModelEntity
@@ -81,13 +87,36 @@ class ImageTextToTextModelEntity(ModelEntity):
         if videos:
             kwargs["videos"] = videos
 
-        # NOTE if images is an empty array, set it to none, it will fail on some models otherwise
-        if not images:
-            images = None
+        loaded_images = self.load_images(images)
 
-        output = self.pipe(text=text, images=images, **kwargs)
+        # NOTE if images is an empty array, set it to none, it will fail on some models otherwise
+        if not loaded_images:
+            loaded_images = None
+
+        output = self.pipe(text=text, images=loaded_images, **kwargs)
 
         return output
+
+    def load_images(self, images):
+        loaded_images = []
+        for image_string in images:
+            image_string: str
+            # normal http links
+            if image_string.startswith("http"):
+                image = Image.open(requests.get(image_string, stream=True).raw)
+                loaded_images.append(image)
+                continue
+
+            # base64 strings
+            if "," in image_string:
+                b64_string = image_string.split(",", 1)[1]
+            else:
+                b64_string = image_string
+            image_data = base64.b64decode(b64_string)
+            image = Image.open(BytesIO(image_data))
+            loaded_images.append(image)
+
+        return loaded_images
 
     def adapt_to_conversational_chat_json(self, messages: List[dict]):
         new_messages = []
@@ -110,14 +139,18 @@ class ImageTextToTextModelEntity(ModelEntity):
                     type = content_item["type"]
 
                     if type == "image":
-                        image_url = content_item["url"]
+                        image_url = content_item.get("url") or content_item.get(
+                            "base64"
+                        )
 
                         images.append(image_url)
                         new_content_item = {"type": "image"}
 
                     # some models can take in videos as multiple images
                     if type == "video":
-                        video_url = content_item["url"]
+                        video_url = content_item.get("url") or content_item.get(
+                            "base64"
+                        )
                         new_content_item = {"type": "image"}
 
                         videos.append(video_url)

@@ -37,15 +37,7 @@ class Qwen2AudioForConditionalGeneration(AudioTextToTextModelEntity):
     def generate(self, text, audios, **kwargs):
         kwargs = {**kwargs, "streamer": kwargs.get("streamer")}
 
-        audios = list(
-            map(
-                lambda audio_url: librosa.load(
-                    BytesIO(urlopen(audio_url).read()),
-                    sr=self.processor.feature_extractor.sampling_rate,
-                )[0],
-                audios,
-            )
-        )
+        audios = self.load_audios(audios)
 
         self.processor.__call__ = processor_monkey_patch.__get__(
             self.processor, type(self.processor)

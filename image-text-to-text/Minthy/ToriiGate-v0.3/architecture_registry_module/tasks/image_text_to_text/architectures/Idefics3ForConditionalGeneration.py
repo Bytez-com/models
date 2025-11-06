@@ -35,11 +35,13 @@ class Idefics3ForConditionalGeneration(ImageTextToTextModelEntity):
         return [{**output, "generated_text": output_messages}]
 
     def generate(self, text, images, **kwargs):
-        # This model does an explicit check for None in its proocessor, otherwise it errors
-        if not images:
-            images = None
+        loaded_images = self.load_images(images)
 
-        inputs = self.processor(text=text, images=images, return_tensors="pt")
+        # This model does an explicit check for None in its proocessor, otherwise it errors
+        if not loaded_images:
+            loaded_images = None
+
+        inputs = self.processor(text=text, images=loaded_images, return_tensors="pt")
         inputs = inputs.to(self.model.device)
         # Generate outputs
         generated_ids = self.model.generate(
@@ -91,9 +93,11 @@ class Idefics3ForConditionalGeneration(ImageTextToTextModelEntity):
                         text_content += content
 
                     elif type == "image":
-                        content = content_item["url"]
+                        image_url = content_item.get("url") or content_item.get(
+                            "base64"
+                        )
                         image_content_items.append({"type": "image"})
-                        images.append(content)
+                        images.append(image_url)
 
             adapted_messages.append(
                 {

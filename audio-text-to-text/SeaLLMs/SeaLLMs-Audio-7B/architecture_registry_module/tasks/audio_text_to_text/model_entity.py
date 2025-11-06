@@ -1,3 +1,4 @@
+import base64
 from typing import List
 from dataclasses import dataclass
 from io import BytesIO
@@ -54,15 +55,7 @@ class AudioTextToTextModelEntity(ModelEntity):
     def generate(self, text, audios, **kwargs):
         kwargs = {**kwargs, "streamer": kwargs.get("streamer")}
 
-        audios = list(
-            map(
-                lambda audio_url: librosa.load(
-                    BytesIO(urlopen(audio_url).read()),
-                    sr=self.processor.feature_extractor.sampling_rate,
-                )[0],
-                audios,
-            )
-        )
+        audios = self.load_audios(audios)
 
         inputs = self.processor(
             text=text, audios=audios, return_tensors="pt", padding=True
@@ -78,6 +71,30 @@ class AudioTextToTextModelEntity(ModelEntity):
         )[0]
 
         return response
+
+    def load_audios(self, audios):
+        loaded_audios = []
+
+        for audio_source in audios:
+            # standard urls
+            if audio_source.startswith("http"):
+                audio_bytes = BytesIO(urlopen(audio_source).read())
+            # base64
+            else:
+                if "," in audio_source:
+                    b64_string = audio_source.split(",", 1)[1]
+                else:
+                    b64_string = audio_source
+                audio_data = base64.b64decode(b64_string)
+                audio_bytes = BytesIO(audio_data)
+
+            loaded_audio, _ = librosa.load(
+                audio_bytes, sr=self.processor.feature_extractor.sampling_rate
+            )[0]
+
+            loaded_audios.append(loaded_audio)
+
+        return loaded_audios
 
     def adapt_to_conversational_chat_json(self, messages: List[dict]):
         new_messages = []
@@ -99,7 +116,9 @@ class AudioTextToTextModelEntity(ModelEntity):
                     type = content_item["type"]
 
                     if type == "audio":
-                        audio_url = content_item["url"]
+                        audio_url = content_item.get("url") or content_item.get(
+                            "base64"
+                        )
 
                         new_content_item = {"type": "audio", "audio_url": audio_url}
 
