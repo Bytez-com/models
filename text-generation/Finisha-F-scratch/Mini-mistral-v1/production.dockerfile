@@ -1,5 +1,5 @@
 # base image
-FROM cuda_python:base
+FROM bytez/cuda_python:base
 
 ARG MODEL_ID
 ENV MODEL_ID=$MODEL_ID
