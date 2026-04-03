@@ -1,3 +1,4 @@
+import copy
 import time
 from flask import jsonify, Response
 
@@ -14,10 +15,50 @@ from adaptation import (
     generate_openai_id,
     should_conform_to_input_expectations,
 )
+from contextlib import contextmanager
 
+
+og_processor_merge_kwargs = pipe.processor._merge_kwargs
+
+
+# NOTE this needs to not deep copy the kwargs, which breaks our streaming impl because from queue import Queue
+# cannot be pickled
+@contextmanager
+def patch_deepcopy():
+    og_deepcopy = copy.deepcopy
+
+    def patched_deep_copy(kwargs: dict, memo=None):
+        streamer = kwargs.get("streamer")
+
+        if streamer:
+            del kwargs["streamer"]
+
+        copied_kwargs = og_deepcopy(kwargs)
+
+        if streamer:
+            copied_kwargs["streamer"] = streamer
+
+        return copied_kwargs
+
+    copy.deepcopy = patched_deep_copy
+
+    try:
+        yield
+    finally:
+        copy.deepcopy = og_deepcopy
+
+
+# NOTE this needs to not deep copy the kwargs
+def patched_processor_merge_kwargs(*args, **kwargs):
+    with patch_deepcopy():
+        return og_processor_merge_kwargs(*args, **kwargs)
+
+
+pipe.processor._merge_kwargs = patched_processor_merge_kwargs
 
 # NOTE this currently tailored to gemma4 and may need to be adjusted for other models
 og_postprocess = pipe.postprocess
+
 
 def monkey_patched_postprocess(model_outputs, **kwargs):
     chat_output = pipe.processor.decode(
@@ -33,11 +74,13 @@ def monkey_patched_postprocess(model_outputs, **kwargs):
 
     return [output]
 
+
 # NOTE this is a monkey patch to allow streaming to work
 # NOTE we may want to deepcopy() the model_inputs and **kwargs in the event the deletions we
 # perform mutate anything, particularly model_inputs
 
 og_forward = pipe._forward
+
 
 def patched_forward(self, model_inputs, **kwargs):
     del model_inputs["text"]
@@ -202,9 +245,6 @@ def run_endpoint_handler(request):
     finally:
         pipe._forward = og_forward
         pipe.postprocess = og_postprocess
-            
-
-
 
 
 def clean_special_floats(data):
