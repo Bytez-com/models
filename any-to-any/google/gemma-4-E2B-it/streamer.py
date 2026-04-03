@@ -1,9 +1,9 @@
 import time
 import json
+from collections import deque
 from dataclasses import dataclass
 from transformers import AutoTokenizer
 from transformers.generation.streamers import BaseStreamer
-from queue import Queue
 from environment import MODEL_LOGGING
 from adaptation import (
     ComplianceFormat,
@@ -14,6 +14,26 @@ from adaptation import (
 )
 
 from transformers.generation.utils import GenerationMixin
+
+
+class SerializableQueue:
+    def __init__(self):
+        self._q = deque()
+
+    def put(self, item):
+        self._q.append(item)
+
+    def get(self):
+        if not self._q:
+            return None  # or raise
+        return self._q.popleft()
+
+    def __getstate__(self):
+        return list(self._q)
+
+    def __setstate__(self, state):
+        self._q = deque(state)
+
 
 # NOTE for monkey patching
 OG__SAMPLE = GenerationMixin._sample
@@ -30,7 +50,7 @@ class TokenResult:
 
 class SingleTokenStreamerVllm(BaseStreamer):
     def __init__(self):
-        self.text_queue = Queue()
+        self.text_queue = SerializableQueue()
 
     def put(self, value: str):
         self.text_queue.put(value)
@@ -64,7 +84,7 @@ class SingleTokenStreamer(BaseStreamer):
         self.tokenizer = tokenizer
         self.skip_prompt = skip_prompt
         self.decode_kwargs = decode_kwargs
-        self.text_queue = Queue()
+        self.text_queue = SerializableQueue()
         self.prev_token: TokenResult = None
         self.prompt_skipped = False
         self.stop_signal = None
@@ -82,7 +102,7 @@ class SingleTokenStreamer(BaseStreamer):
         self.monkey_patch_transformers_text_generation_sampler()
 
     def reset(self):
-        self.text_queue = Queue()
+        self.text_queue = SerializableQueue()
         self.pending_tokens = []
         self.token_buffer = []
         self.prompt_skipped = False
