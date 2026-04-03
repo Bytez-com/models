@@ -40,7 +40,7 @@ def model_run_generator(*args, params: dict, adaptation_kwargs: dict):
             model_run(
                 text_input,
                 params={
-                    "max_new_tokens": 1,
+                    **params,
                     "generate_kwargs": {
                         "streamer": streamer,
                     },
