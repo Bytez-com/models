@@ -30,7 +30,22 @@ def model_run_generator(*args, params: dict, adaptation_kwargs: dict):
 
     def model_run_thread():
         try:
-            model_run(*args, params=params)
+            text_input = args[0]
+            text_input = pipe.processor.apply_chat_template(
+                text_input,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=params.get("enable_thinking", False),
+            )
+            model_run(
+                text_input,
+                params={
+                    "max_new_tokens": 1,
+                    "generate_kwargs": {
+                        "streamer": streamer,
+                    },
+                },
+            )
         except Exception as exception:
             streamer.text_queue.put(f"Error: {str(exception)}")
 

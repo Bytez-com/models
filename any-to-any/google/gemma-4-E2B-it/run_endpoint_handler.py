@@ -15,25 +15,41 @@ from adaptation import (
     should_conform_to_input_expectations,
 )
 
+
 # NOTE this currently tailored to gemma4 and may need to be adjusted for other models
-if not LOADED_ON_VLLM:
-    og_postprocess = pipe.postprocess
+og_postprocess = pipe.postprocess
 
-    def monkey_patched_postprocess(model_outputs, **kwargs):
-        chat_output = pipe.processor.decode(
-            model_outputs["generated_sequence"],
-            # NOTE this may do something unexpected to thinking tokens
-            skip_special_tokens=True,
-        )
-        output = {}
-        output["generated_text"] = pipe.processor.parse_response(chat_output)
+def monkey_patched_postprocess(model_outputs, **kwargs):
+    chat_output = pipe.processor.decode(
+        model_outputs["generated_sequence"],
+        # NOTE this may do something unexpected to thinking tokens
+        skip_special_tokens=True,
+    )
+    output = {}
+    output["generated_text"] = pipe.processor.parse_response(chat_output)
 
-        sequence = model_outputs["generated_sequence"][0].tolist()
-        output["sequence"] = sequence
+    sequence = model_outputs["generated_sequence"][0].tolist()
+    output["sequence"] = sequence
 
-        return [output]
+    return [output]
 
-    pipe.postprocess = monkey_patched_postprocess
+# NOTE this is a monkey patch to allow streaming to work
+# NOTE we may want to deepcopy() the model_inputs and **kwargs in the event the deletions we
+# perform mutate anything, particularly model_inputs
+
+og_forward = pipe._forward
+
+def patched_forward(self, model_inputs, **kwargs):
+    del model_inputs["text"]
+
+    streamer = kwargs["generate_kwargs"].get("streamer")
+    del kwargs["generate_kwargs"]
+
+    return self.model.generate(
+        **model_inputs,
+        streamer=streamer,
+        **kwargs,
+    )
 
 
 def run_endpoint_handler(request):
@@ -41,140 +57,154 @@ def run_endpoint_handler(request):
     text_input = request.json["text"]
     stream = request.json.get("stream", False)
 
-    adaptation_kwargs = get_and_delete_adaptation_kwargs(params)
+    if not LOADED_ON_VLLM:
+        if stream:
+            pipe._forward = patched_forward.__get__(pipe, type(pipe))
+        else:
+            pipe.postprocess = monkey_patched_postprocess
 
-    compliance_format: ComplianceFormat = adaptation_kwargs["compliance_format"]
+    try:
+        adaptation_kwargs = get_and_delete_adaptation_kwargs(params)
 
-    should_conform_to_input_expectations(compliance_format, text_input)
+        compliance_format: ComplianceFormat = adaptation_kwargs["compliance_format"]
 
-    pipeline_kwargs = {
-        **params,
-        # these add props to the returned model output dict that are for computing logprobs and token usage
-        "output_scores": True,
-        "return_dict_in_generate": True,
-    }
+        should_conform_to_input_expectations(compliance_format, text_input)
 
-    vllm_kwargs = {**params, **adaptation_kwargs}
+        pipeline_kwargs = {
+            **params,
+            # these add props to the returned model output dict that are for computing logprobs and token usage
+            "output_scores": True,
+            "return_dict_in_generate": True,
+        }
 
-    params = vllm_kwargs if LOADED_ON_VLLM else pipeline_kwargs
+        vllm_kwargs = {**params, **adaptation_kwargs}
 
-    if stream:
-        output_generator = model_run_generator(
+        params = vllm_kwargs if LOADED_ON_VLLM else pipeline_kwargs
+
+        if stream:
+            output_generator = model_run_generator(
+                text_input,
+                params=params,
+                adaptation_kwargs=adaptation_kwargs,
+            )
+
+            return Response(
+                output_generator(),
+                content_type="text/event-stream; charset=utf-8",
+            )
+
+        if LOADED_ON_VLLM:
+            model_output = model_run(
+                text_input,
+                params,
+            )
+
+            if compliance_format.is_openai_format():
+                return jsonify(model_output)
+
+            return jsonify({"output": model_output})
+
+        should_get_logprobs = adaptation_kwargs["logprobs"]
+
+        text_input = pipe.processor.apply_chat_template(
             text_input,
-            params=params,
-            adaptation_kwargs=adaptation_kwargs,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=params.get("enable_thinking", False),
         )
 
-        return Response(
-            output_generator(),
-            content_type="text/event-stream; charset=utf-8",
-        )
-
-    if LOADED_ON_VLLM:
         model_output = model_run(
             text_input,
             params,
         )
 
-        if compliance_format.is_openai_format():
-            return jsonify(model_output)
+        model_output = model_output[0]
 
-        return jsonify({"output": model_output})
+        prompt_tokens = len(pipe.tokenizer(text_input)["input_ids"])
+        total_tokens = len(model_output["sequence"])
 
-    should_get_logprobs = adaptation_kwargs["logprobs"]
+        usage = {
+            "prompt_tokens": prompt_tokens,
+            "total_tokens": total_tokens,
+            "completion_tokens": total_tokens - prompt_tokens,
+            "prompt_tokens_details": None,
+        }
 
-    text_input = pipe.processor.apply_chat_template(
-        text_input,
-        tokenize=False,
-        add_generation_prompt=True,
-        enable_thinking=params.get("enable_thinking", False),
-    )
-
-    model_output = model_run(
-        text_input,
-        params,
-    )
-
-    model_output = model_output[0]
-
-    prompt_tokens = len(pipe.tokenizer(text_input)["input_ids"])
-    total_tokens = len(model_output["sequence"])
-
-    usage = {
-        "prompt_tokens": prompt_tokens,
-        "total_tokens": total_tokens,
-        "completion_tokens": total_tokens - prompt_tokens,
-        "prompt_tokens_details": None,
-    }
-
-    logprobs = (
-        get_logprobs(adaptation_kwargs, text_input, model_output)
-        if should_get_logprobs
-        else None
-    )
-
-    model_output = clean_special_floats(model_output)
-
-    if compliance_format == ComplianceFormat.OPEN_AI_COMPLETIONS:
-        return jsonify(
-            {
-                "id": generate_openai_id("cmpl"),
-                "object": "text_completion",
-                "created": int(time.time()),
-                "model": MODEL_ID,
-                "choices": [
-                    {
-                        "index": 0,
-                        "text": model_output["generated_text"],
-                        "logprobs": logprobs,
-                        # TODO could benefit from knowing difference between length and stop
-                        "finish_reason": "stop",
-                        "stop_reason": None,
-                    }
-                ],
-                "usage": usage,
-            }
+        logprobs = (
+            get_logprobs(adaptation_kwargs, text_input, model_output)
+            if should_get_logprobs
+            else None
         )
 
-    if compliance_format == ComplianceFormat.OPEN_AI_CHAT_COMPLETIONS:
-        last_message = model_output["generated_text"][-1]
-        return jsonify(
-            {
-                "id": generate_openai_id("chatcmpl"),
-                "object": "chat.completion",
-                "created": int(time.time()),
-                "model": MODEL_ID,
-                "choices": [
-                    {
-                        "message": {
-                            # these by default are included in the response, if the model returns them, these will be overridden to a new value
-                            "reasoning_content": None,
-                            "tool_calls": [],
-                            **last_message,
-                            # in the event the model does not return "assistant" for role, we override it here
-                            "role": "assistant",
-                        },
-                        "logprobs": logprobs,
-                    }
-                ],
-                # TODO could benefit from knowing difference between length and stop
-                "finish_reason": "stop",
-                "stop_reason": None,
-                "usage": usage,
-            }
-        )
+        model_output = clean_special_floats(model_output)
 
-    # clean up the output
-    if "sequence" in model_output:
-        del model_output["sequence"]
+        if compliance_format == ComplianceFormat.OPEN_AI_COMPLETIONS:
+            return jsonify(
+                {
+                    "id": generate_openai_id("cmpl"),
+                    "object": "text_completion",
+                    "created": int(time.time()),
+                    "model": MODEL_ID,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "text": model_output["generated_text"],
+                            "logprobs": logprobs,
+                            # TODO could benefit from knowing difference between length and stop
+                            "finish_reason": "stop",
+                            "stop_reason": None,
+                        }
+                    ],
+                    "usage": usage,
+                }
+            )
 
-    if "scores" in model_output:
-        del model_output["scores"]
+        if compliance_format == ComplianceFormat.OPEN_AI_CHAT_COMPLETIONS:
+            last_message = model_output["generated_text"][-1]
+            return jsonify(
+                {
+                    "id": generate_openai_id("chatcmpl"),
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": MODEL_ID,
+                    "choices": [
+                        {
+                            "message": {
+                                # these by default are included in the response, if the model returns them, these will be overridden to a new value
+                                "reasoning_content": None,
+                                "tool_calls": [],
+                                **last_message,
+                                # in the event the model does not return "assistant" for role, we override it here
+                                "role": "assistant",
+                            },
+                            "logprobs": logprobs,
+                        }
+                    ],
+                    # TODO could benefit from knowing difference between length and stop
+                    "finish_reason": "stop",
+                    "stop_reason": None,
+                    "usage": usage,
+                }
+            )
 
-    model_output["logprobs"] = logprobs
-    model_output["usage"] = usage
+        # clean up the output
+        if "sequence" in model_output:
+            del model_output["sequence"]
 
-    return jsonify({"output": [model_output]})
+        if "scores" in model_output:
+            del model_output["scores"]
+
+        model_output["logprobs"] = logprobs
+        model_output["usage"] = usage
+
+        return jsonify({"output": [model_output]})
+        pass
+    finally:
+        pipe._forward = og_forward
+        pipe.postprocess = og_postprocess
+            
+
+
 
 
 def clean_special_floats(data):
