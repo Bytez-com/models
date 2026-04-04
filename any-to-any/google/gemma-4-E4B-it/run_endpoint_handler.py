@@ -18,11 +18,15 @@ from adaptation import (
 from contextlib import contextmanager
 
 
+# NOTE this needs to not deep copy the kwargs
 og_processor_merge_kwargs = pipe.processor._merge_kwargs
 
 
-# NOTE this needs to not deep copy the kwargs, which breaks our streaming impl because from queue import Queue
-# cannot be pickled
+def patched_processor_merge_kwargs(*args, **kwargs):
+    with patch_deepcopy():
+        return og_processor_merge_kwargs(*args, **kwargs)
+
+
 @contextmanager
 def patch_deepcopy():
     og_deepcopy = copy.deepcopy
@@ -37,7 +41,6 @@ def patch_deepcopy():
 
         if streamer:
             copied_kwargs["streamer"] = streamer
-
         return copied_kwargs
 
     copy.deepcopy = patched_deep_copy
@@ -46,33 +49,6 @@ def patch_deepcopy():
         yield
     finally:
         copy.deepcopy = og_deepcopy
-
-
-# NOTE this needs to not deep copy the kwargs
-def patched_processor_merge_kwargs(*args, **kwargs):
-    with patch_deepcopy():
-        return og_processor_merge_kwargs(*args, **kwargs)
-
-
-pipe.processor._merge_kwargs = patched_processor_merge_kwargs
-
-# NOTE this currently tailored to gemma4 and may need to be adjusted for other models
-og_postprocess = pipe.postprocess
-
-
-def monkey_patched_postprocess(model_outputs, **kwargs):
-    chat_output = pipe.processor.decode(
-        model_outputs["generated_sequence"],
-        # NOTE this may do something unexpected to thinking tokens
-        skip_special_tokens=True,
-    )
-    output = {}
-    output["generated_text"] = pipe.processor.parse_response(chat_output)
-
-    sequence = model_outputs["generated_sequence"][0].tolist()
-    output["sequence"] = sequence
-
-    return [output]
 
 
 # NOTE this is a monkey patch to allow streaming to work
@@ -97,21 +73,25 @@ def patched_forward(self, model_inputs, **kwargs):
 
 def run_endpoint_handler(request):
     params = request.json.get("params", {})
-    text_input = request.json["text"]
+    messages = request.json["text"]
+
+    if "temperature" in params:
+        params["temperature"] = max(params["temperature"], 0.01)
+
+    adapt_messages(messages)
+
     stream = request.json.get("stream", False)
 
     if not LOADED_ON_VLLM:
         if stream:
             pipe._forward = patched_forward.__get__(pipe, type(pipe))
-        else:
-            pipe.postprocess = monkey_patched_postprocess
 
     try:
         adaptation_kwargs = get_and_delete_adaptation_kwargs(params)
 
         compliance_format: ComplianceFormat = adaptation_kwargs["compliance_format"]
 
-        should_conform_to_input_expectations(compliance_format, text_input)
+        should_conform_to_input_expectations(compliance_format, messages)
 
         pipeline_kwargs = {
             **params,
@@ -126,7 +106,7 @@ def run_endpoint_handler(request):
 
         if stream:
             output_generator = model_run_generator(
-                text_input,
+                messages,
                 params=params,
                 adaptation_kwargs=adaptation_kwargs,
             )
@@ -138,7 +118,7 @@ def run_endpoint_handler(request):
 
         if LOADED_ON_VLLM:
             model_output = model_run(
-                text_input,
+                messages,
                 params,
             )
 
@@ -149,32 +129,50 @@ def run_endpoint_handler(request):
 
         should_get_logprobs = adaptation_kwargs["logprobs"]
 
-        text_input = pipe.processor.apply_chat_template(
-            text_input,
-            tokenize=False,
+        inputs = pipe.processor.apply_chat_template(
+            messages,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt",
             add_generation_prompt=True,
             enable_thinking=params.get("enable_thinking", False),
         )
 
-        model_output = model_run(
-            text_input,
-            params,
+        inputs = {k: v.to(pipe.model.device.type) for k, v in inputs.items()}
+
+        input_len = inputs["input_ids"].shape[-1]
+
+        outputs = pipe.model.generate(**inputs, **params)
+
+        sequence = outputs["sequences"][0]
+
+        response = pipe.processor.decode(
+            # NOTE this may do something unexpected to thinking tokens, may need to be False, but if set to False
+            # you will get the formatting characters
+            sequence[input_len:],
+            skip_special_tokens=True,
         )
 
-        model_output = model_output[0]
+        # Parse output
+        model_output = pipe.processor.parse_response(response)
 
-        prompt_tokens = len(pipe.tokenizer(text_input)["input_ids"])
-        total_tokens = len(model_output["sequence"])
+        model_output = {"generated_text": [model_output]}
+
+        total_tokens = len(sequence)
 
         usage = {
-            "prompt_tokens": prompt_tokens,
+            "prompt_tokens": input_len,
             "total_tokens": total_tokens,
-            "completion_tokens": total_tokens - prompt_tokens,
+            "completion_tokens": total_tokens - input_len,
             "prompt_tokens_details": None,
         }
 
         logprobs = (
-            get_logprobs(adaptation_kwargs, text_input, model_output)
+            get_logprobs(
+                adaptation_kwargs,
+                messages,
+                {"sequence": sequence, "scores": outputs["scores"]},
+            )
             if should_get_logprobs
             else None
         )
@@ -244,7 +242,12 @@ def run_endpoint_handler(request):
         pass
     finally:
         pipe._forward = og_forward
-        pipe.postprocess = og_postprocess
+
+
+def adapt_messages(messages):
+    for message in messages:
+        if isinstance(message["content"], str):
+            message["content"] = [{"type": "text", "text": message["content"]}]
 
 
 def clean_special_floats(data):
@@ -261,7 +264,7 @@ def clean_special_floats(data):
 
 def get_logprobs(
     adaptation_kwargs: dict,
-    text_input,
+    messages,
     model_output,
 ):
     top_logprobs = adaptation_kwargs["top_logprobs"]
@@ -269,7 +272,7 @@ def get_logprobs(
     sequence = model_output["sequence"]
     scores = model_output["scores"]
 
-    if isinstance(text_input, str):
+    if isinstance(messages, str):
         return hf_sequence_logprobs_to_openai_completions_format(
             sequence, scores, pipe.tokenizer, top_logprobs
         )
