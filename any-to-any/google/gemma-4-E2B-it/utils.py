@@ -8,7 +8,7 @@ from streamer import (
     SingleTokenStreamerVllm,
 )
 import numpy as np
-from environment import MODEL_ID, DEVICE
+from environment import MODEL_ID
 
 
 def model_run_generator(*args, params: dict, adaptation_kwargs: dict):
@@ -33,6 +33,9 @@ def model_run_generator(*args, params: dict, adaptation_kwargs: dict):
             messages = args[0]
 
             adapt_messages(messages)
+
+            if "temperature" in params:
+                params["temperature"] = max(params["temperature"], 0.01)
 
             inputs = pipe.processor.apply_chat_template(
                 messages,

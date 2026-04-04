@@ -75,6 +75,9 @@ def run_endpoint_handler(request):
     params = request.json.get("params", {})
     messages = request.json["text"]
 
+    if "temperature" in params:
+        params["temperature"] = max(params["temperature"], 0.01)
+
     adapt_messages(messages)
 
     stream = request.json.get("stream", False)
