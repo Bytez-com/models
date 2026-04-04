@@ -30,22 +30,33 @@ def model_run_generator(*args, params: dict, adaptation_kwargs: dict):
 
     def model_run_thread():
         try:
-            text_input = args[0]
-            text_input = pipe.processor.apply_chat_template(
-                text_input,
-                tokenize=False,
+            messages = args[0]
+
+            adapt_messages(messages)
+
+            if "temperature" in params:
+                params["temperature"] = max(params["temperature"], 0.01)
+
+            inputs = pipe.processor.apply_chat_template(
+                messages,
+                tokenize=True,
+                return_dict=True,
+                return_tensors="pt",
                 add_generation_prompt=True,
                 enable_thinking=params.get("enable_thinking", False),
             )
-            model_run(
-                text_input,
-                params={
+
+            inputs = {k: v.to(pipe.model.device.type) for k, v in inputs.items()}
+
+            # Generate output (tokens are returned to the "streamer" object)
+            pipe.model.generate(
+                **inputs,
+                **{
                     **params,
-                    "generate_kwargs": {
-                        "streamer": streamer,
-                    },
+                    "streamer": streamer,
                 },
             )
+
         except Exception as exception:
             streamer.text_queue.put(f"Error: {str(exception)}")
 
@@ -78,6 +89,12 @@ def model_run_generator(*args, params: dict, adaptation_kwargs: dict):
         # always cleanup the thread on failure, no finally block because normal cleanup has to happen in the generator
         thread.join()
         raise exception
+
+
+def adapt_messages(messages):
+    for message in messages:
+        if isinstance(message["content"], str):
+            message["content"] = [{"type": "text", "text": message["content"]}]
 
 
 def convert_np(obj):
